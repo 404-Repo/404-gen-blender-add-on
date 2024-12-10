@@ -1,13 +1,7 @@
 import subprocess
 import sys
-
-
-DEPENDENCIES = (
-    "numpy",
-    "pydantic",
-    "websocket-client",
-    "mixpanel",
-)
+import os
+from pathlib import Path
 
 
 def installed() -> bool:
@@ -22,11 +16,43 @@ def installed() -> bool:
         return False
 
 
-def install() -> None:
-    python_exe = sys.executable
-    subprocess.check_output([python_exe, "-m", "ensurepip"])
-    subprocess.check_output([python_exe, "-m", "pip", "install", "--upgrade", "pip"])
+def install_pip():
+    try:
+        subprocess.run([sys.executable, "-m", "pip", "--version"], check=True)
+    except subprocess.CalledProcessError:
+        import ensurepip
 
-    for dep in DEPENDENCIES:
-        print(f"Installing {dep}")
-        subprocess.check_output([python_exe, "-m", "pip", "install", dep])
+        ensurepip.bootstrap()
+        os.environ.pop("PIP_REQ_TRACKER", None)
+
+
+def install_dependencies_from_requirements():
+    env_var = dict(os.environ)
+    # ensures pip installs dependencies on blender's python lib folder
+    env_var["PYTHONNOUSERSITE"] = "1"
+
+    requirements_path = Path(__file__).resolve().parent / "requirements.txt"
+
+    if not requirements_path.exists():
+        raise FileNotFoundError(
+            f"requirements.txt not found in {requirements_path.as_posix()}"
+        )
+
+    subprocess.run(
+        [sys.executable, "-m", "pip", "install", "-r", requirements_path.as_posix()],
+        check=True,
+        env=env_var,
+    )
+
+
+def install() -> None:
+    install_pip()
+
+    install_dependencies_from_requirements()
+
+
+if __name__ == "__main__":
+    if installed():
+        print("dependencies installed")
+    else:
+        install()
