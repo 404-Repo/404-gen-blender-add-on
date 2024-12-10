@@ -1,7 +1,7 @@
 schema_version = "1.0.0"
 
 id = "fourofour_3d_gen"
-version = "0.6.0"
+version = "0.7.0"
 name = "404 3D Generator"
 tagline = "404 3D Generator Extension"
 maintainer = "Ruben Hohndorf <ruben@atlas.design>"
