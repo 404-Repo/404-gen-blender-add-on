@@ -30,7 +30,6 @@ def request_model(prompt: str) -> tuple[None, None] | tuple[str, str]:
             print(f"Stats: {update.statistics}")
 
             if assets:
-                winner_hotkey = max(update.statistics.miners, key=lambda miner: miner.score).hotkey
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".ply") as temp_file:
                     temp_file.write(base64.b64decode(assets.encode("utf-8")))
                     filepath = temp_file.name
