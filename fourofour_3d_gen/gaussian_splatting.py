@@ -9,7 +9,7 @@ from .plyfile import PlyData
 RECOMMENDED_MAX_GAUSSIANS = 200_000
 
 
-def import_gs(filepath: str, name: str, winner_hotkey: str = ""):
+def import_gs(filepath: str, name: str):
 
     if "GaussianSplatting" not in bpy.data.node_groups:
         script_file = os.path.realpath(__file__)
@@ -129,9 +129,8 @@ def import_gs(filepath: str, name: str, winner_hotkey: str = ""):
 
     obj.rotation_mode = "XYZ"
     obj.rotation_euler = (-np.pi / 2, 0, 0)
-    obj.rotation_euler[0] = 1.5708
+    obj.rotation_euler[0] = -1.5708
 
-    obj["Bittensor Miner"] = winner_hotkey
 
     print("Mesh attributes added in", time.time() - start_time, "seconds")
 

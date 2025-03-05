@@ -34,7 +34,7 @@ class ConsentOperator(bpy.types.Operator):
 
 class ThreegenPreferences(AddonPreferences):
     bl_idname = __package__
-    url: StringProperty(default="wss://92mafspric1h18-8888.proxy.runpod.net/ws/generate/")
+    url: StringProperty(default="https://c4bc14ad8a5a.ngrok.app/generate/")
     token: StringProperty(default="rnqk3og2CruVinbJFvmkroefRrFfubTpBfCpQqfMNU")
     uid: StringProperty()
     data_collection: BoolProperty(default=True)
@@ -52,7 +52,6 @@ class ThreegenPreferences(AddonPreferences):
                 col.operator(ConsentOperator.bl_idname)
             else:
                 col.prop(self, "url", text="URL")
-                col.prop(self, "token", text="API Key")
                 col.prop(self, "data_collection", text="Allow collection of anonymous usage data")
 
         else:

@@ -1,7 +1,7 @@
 import bpy
 from bpy.types import Context, Panel
 
-from .ops import GenerateOperator, ImportOperator
+from .ops import GenerateOperator, ImportOperator,OpenImageOperator, MeshConversionOperator
 
 
 class MainPanel(Panel):
@@ -22,27 +22,19 @@ class MainPanel(Panel):
 
         box = layout.box()
         row = box.row()
-        row.prop(
-            threegen,
-            "prompt",
-            text="Prompt",
-        )
+        row.operator(OpenImageOperator.bl_idname)
+        row = box.row()
+        row.prop(threegen, "image", text="")
         row = box.row()
         split = row.split(factor=0.25)
 
         col = split.column()
-        col.prop(threegen, "n_generations", text="")
-
-        if threegen.in_progress:
-            box.progress(
-                factor=threegen.progress,
-                type="BAR",
-            )
-
+        col.prop(threegen, "seed", text="")
         col = split.column()
         col.operator(GenerateOperator.bl_idname)
         row = layout.row()
         row.operator(ImportOperator.bl_idname)
+
 
 
 class DisplaySettingsPanel(Panel):
@@ -88,17 +80,20 @@ class ConversionPanel(Panel):
         return obj is not None and "Gaussian Splatting" in obj.modifiers and notified
 
     def draw(self, context: Context):
+        threegen = context.window_manager.threegen
         layout = self.layout
-        obj = context.active_object
 
         row = layout.row()
-        row.prop(obj.modifiers["Gaussian Splatting"], '["Socket_5"]', text="Convert")
-
+        row.prop(threegen, "voxel_size", text="Voxel Size")
         row = layout.row()
-        row.prop(obj.modifiers["Gaussian Splatting"], '["Socket_6"]', text="Voxel Size")
-
+        row.prop(threegen, "adaptivity", text="Adaptivity")
         row = layout.row()
-        row.prop(obj.modifiers["Gaussian Splatting"], '["Socket_7"]', text="Adaptivity")
+        row.prop(threegen, "texture_size", text="Texture Size")    
+        row = layout.row()
+        op = row.operator(MeshConversionOperator.bl_idname)
+        op.voxel_size = threegen.voxel_size
+        op.adaptivity = threegen.adaptivity
+        op.texture_size = threegen.texture_size
 
 
 # class ConsentPanel(bpy.types.Panel):
