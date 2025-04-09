@@ -70,7 +70,7 @@ class ImportOperator(Operator, ImportHelper):
     def execute(self, context):
         name = Path(self.filepath).stem
         name = re.sub(r"\s+", "_", name)
-        import_gs(self.filepath, name, "")
+        import_gs(self.filepath, name)
 
         return {"FINISHED"}
 
@@ -110,10 +110,11 @@ class MeshConversionOperator(Operator):
     texture_size: bpy.props.IntProperty(default=4096)
 
     def execute(self, context):
+        threegen = context.window_manager.threegen
         gs_obj = context.active_object
         mesh_obj = generate_mesh(gs_obj, self.voxel_size, self.adaptivity)
-        generate_uvs(mesh_obj)
-        bake_texture(gs_obj, mesh_obj, self.texture_size)
+        generate_uvs(mesh_obj, threegen.angle_limit, threegen.island_margin)
+        bake_texture(gs_obj, mesh_obj, self.texture_size, threegen.ray_distance, threegen.cage_extrusion)
         mesh_obj.location.x += mesh_obj.dimensions.x
 
         return {'FINISHED'}

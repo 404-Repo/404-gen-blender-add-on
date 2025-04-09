@@ -7,7 +7,6 @@ def request_model(image_path:str, seed:int) ->  None|str:
     url = bpy.context.preferences.addons[__package__].preferences.url
     filepath = None
 
-    # Open the image file in binary mode
     with open(image_path, 'rb') as f:
         files = {'file': f}
         data = {'seed': seed}
@@ -20,6 +19,5 @@ def request_model(image_path:str, seed:int) ->  None|str:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".ply") as temp_file:
             temp_file.write(decoded_data)
             filepath = temp_file.name
-
 
     return filepath

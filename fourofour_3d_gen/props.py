@@ -12,8 +12,13 @@ class WindowManagerProps(bpy.types.PropertyGroup):
     )    
     voxel_size: bpy.props.FloatProperty(default=0.005, precision=3)
     adaptivity: bpy.props.FloatProperty(default=0.0, precision=3)
-    texture_size: bpy.props.IntProperty(default=4096)
 
+    angle_limit: bpy.props.FloatProperty(default=1.0, precision=3)
+    island_margin: bpy.props.FloatProperty(default=0.0, precision=3)
+
+    texture_size: bpy.props.IntProperty(default=4096)
+    ray_distance: bpy.props.FloatProperty(default=0.04, precision=3)
+    cage_extrusion: bpy.props.FloatProperty(default=0.02, precision=3)
 
 classes = (WindowManagerProps,)
 

@@ -87,8 +87,20 @@ class ConversionPanel(Panel):
         row.prop(threegen, "voxel_size", text="Voxel Size")
         row = layout.row()
         row.prop(threegen, "adaptivity", text="Adaptivity")
+
         row = layout.row()
-        row.prop(threegen, "texture_size", text="Texture Size")    
+        row.prop(threegen, "angle_limit", text="Angle Limit")
+        row = layout.row()
+        row.prop(threegen, "island_margin", text="Island Margin")
+
+        row = layout.row()
+        row.prop(threegen, "texture_size", text="Texture Size")
+        row = layout.row()
+        row.prop(threegen, "ray_distance", text="Ray Distance")
+        row = layout.row()
+        row.prop(threegen, "cage_extrusion", text="Cage Extrusion")
+
+
         row = layout.row()
         op = row.operator(MeshConversionOperator.bl_idname)
         op.voxel_size = threegen.voxel_size

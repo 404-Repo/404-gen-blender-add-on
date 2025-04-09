@@ -131,6 +131,13 @@ def import_gs(filepath: str, name: str):
     obj.rotation_euler = (-np.pi / 2, 0, 0)
     obj.rotation_euler[0] = -1.5708
 
+    local_bbox = [mathutils.Vector(corner) for corner in obj.bound_box]
+    min_z = min(corner.z for corner in local_bbox)
+    offset = mathutils.Vector((0, min_z, 0))
+    bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='BOUNDS')
+    obj.data.transform(mathutils.Matrix.Translation(offset))
+    bpy.context.view_layer.update()
+
 
     print("Mesh attributes added in", time.time() - start_time, "seconds")
 
@@ -138,6 +145,9 @@ def import_gs(filepath: str, name: str):
 
     print("Total Processing time: ", time.time() - start_time_0)
 
+
+# def export_gs(obj, filepath: str):
+#     ...
 
 def setup_nodes(obj):
     start_time = time.time()
