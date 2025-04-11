@@ -8,7 +8,7 @@ import re
 from .client import request_model
 from .gaussian_splatting import import_gs
 from .data_collection import track
-
+from.mesh_conversion import generate_mesh, generate_uvs, bake_texture
 
 class GenerateOperator(Operator):
     """Generate 3DGS model"""
@@ -87,11 +87,34 @@ class ImportOperator(Operator, ImportHelper):
         import_gs(self.filepath, name, "")
 
         return {"FINISHED"}
+    
+class MeshConversionOperator(Operator):
+    """Create Mesh from 3DGS model"""
+
+    bl_idname = "threegen.generate_mesh"
+    bl_label = "Generate Mesh"
+
+    def execute(self, context):
+        threegen = context.window_manager.threegen
+        gs_obj = context.active_object
+        voxel_size = threegen.voxel_size
+        adaptivity = threegen.adaptivity
+        texture_size = threegen.texture_size
+        angle_limit = threegen.angle_limit
+        island_margin = threegen.island_margin
+
+        mesh_obj = generate_mesh(gs_obj, voxel_size, adaptivity)
+        generate_uvs(mesh_obj, angle_limit, island_margin)
+        bake_texture(gs_obj, mesh_obj, texture_size)
+        mesh_obj.location.x += mesh_obj.dimensions.x
+
+        return {'FINISHED'}
 
 
 classes = (
     GenerateOperator,
     ImportOperator,
+    MeshConversionOperator,
 )
 
 
