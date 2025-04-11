@@ -1,7 +1,7 @@
 import bpy
 from bpy.types import Context, Panel
 
-from .ops import GenerateOperator, ImportOperator
+from .ops import GenerateOperator, ImportOperator, MeshConversionOperator
 
 
 class MainPanel(Panel):
@@ -88,17 +88,23 @@ class ConversionPanel(Panel):
         return obj is not None and "Gaussian Splatting" in obj.modifiers and notified
 
     def draw(self, context: Context):
+        threegen = context.window_manager.threegen
         layout = self.layout
-        obj = context.active_object
 
         row = layout.row()
-        row.prop(obj.modifiers["Gaussian Splatting"], '["Socket_5"]', text="Convert")
+        row.prop(threegen, "voxel_size", text="Min Detail Size")
+        row = layout.row()
+        row.prop(threegen, "adaptivity", text="Simplify")
 
         row = layout.row()
-        row.prop(obj.modifiers["Gaussian Splatting"], '["Socket_6"]', text="Voxel Size")
+        row.prop(threegen, "angle_limit", text="Angle Limit")
 
         row = layout.row()
-        row.prop(obj.modifiers["Gaussian Splatting"], '["Socket_7"]', text="Adaptivity")
+        row.prop(threegen, "texture_size", text="Texture Size")
+
+        row = layout.row()
+        op = row.operator(MeshConversionOperator.bl_idname)
+
 
 
 # class ConsentPanel(bpy.types.Panel):
