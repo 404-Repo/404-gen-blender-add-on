@@ -17,7 +17,7 @@
 Blender 4.2+
 
 ### Instructions
-1. Download the ZIP file of the most recent release and **_do not unzip_**
+1. Download the latest release from this repo [or Gumroad](https://404gen.gumroad.com/l/blender) and **_do not unzip_**
    
   <img width="480" alt="release" src="https://github.com/user-attachments/assets/e91a8530-43bb-49bd-bffe-a2540f038c25">
 
@@ -50,26 +50,30 @@ Blender 4.2+
 
 ## Usage
 ### Generating
-1. Type your prompt and click Generate. Each generation should take **approximately 1 minute**.
+Type your prompt and click Generate. Each generation should take **approximately 1 minute**.
 
 > [!NOTE]
 >- For best results, describe a single object/element for each generation, rather than an entire scene or room at once.
 >- To view the material in object or edit mode, open the Shading Menu (shortcut z) and select Material Preview (shortcut 2).
 
-2. Adjust display settings *(optional)*
+### Settings and Mesh Generation
+After the splat is generated or imported, the **Splat Display Settings** and **Mesh Conversion** dropdown menus will appear.
 
-After the splat is generated, the Display Settings dropdown will appear. Gaussian Splats are often rendered with some zero or low opacity points. Increasing the opacity threshold will filter out any points beneath the set threshold.
+> [!CAUTION]
+> Applying the geometry nodes modifier will convert to a very high poly mesh that will greatly decrease in quality if simplified. For higher visual quality and lower poly count, use the Generate Mesh button.
 
-  <img width="480" alt="display" src="https://github.com/user-attachments/assets/d65ae186-25b8-47f0-9d0d-7b3357f7e09e">
+  <img width="320" alt="sliders_0 9 0" src="https://github.com/user-attachments/assets/c79ab713-bfb6-41a3-b52a-b22f4d7c11ca">
 
+#### Splat Display Settings
+- **Opacity Threshold:** Gaussian Splats are often generated with fully or partially transparent ellipsoids. Ellipsoids with an opacity below the set threshold will be hidden.
+- **Display Percentage:** Sets the percentage of the entire Gaussian Splat to display.
+- **Min Detail Size:** Determines the amount of detail to be included in the generated mesh. A lower value will generate a higher level of detail.
+- **Simplify:** Simplifies the generated mesh. A higher value will lead to a smoother, more decimated mesh.
+- **Angle Limit:** Adjusts the UV map's angle limit. The default is recommended unless the mesh generates with black/missing spots in the texture, in which case the limit should be lowered.
+- **Texture Size:** The size of the texture in pixels.
+- **Generate Mesh:** This will generate a mesh of the selected Gaussian Splat based on the above values. The mesh will overlap and have the same name as the Gaussian Splat, but they are two sepate objects in the collection.
 
-3. Convert to mesh *(optional)*
-
-There are two ways to convert to mesh.
-  - **Low Poly**: Check the **convert** box located beneath the Display Settings dropdown. Smaller voxel size will result in a more detailed mesh, while larger voxel size will result in a lower poly count. The modifier must be applied to complete the mesh conversion\
-  - **High Poly**: Apply the geometry nodes modifier **without** checking the convert box.
-  <img width="480" alt="mesh" src="https://github.com/user-attachments/assets/7c00756b-3b63-4dd7-b0ff-aa3bc03459af">
-
+  <img width="1440" alt="mesh_0 9 0" src="https://github.com/user-attachments/assets/7993a277-b5b4-4217-8432-fd634d11efcb">
 
 > [!NOTE]
 > For questions or help troubleshooting, join our [Discord server](https://discord.gg/404gen).
