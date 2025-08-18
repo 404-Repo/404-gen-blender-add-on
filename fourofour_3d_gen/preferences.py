@@ -34,8 +34,8 @@ class ConsentOperator(bpy.types.Operator):
 
 class ThreegenPreferences(AddonPreferences):
     bl_idname = __package__
-    url: StringProperty(default="wss://92mafspric1h18-8888.proxy.runpod.net/ws/generate/")
-    token: StringProperty(default="rnqk3og2CruVinbJFvmkroefRrFfubTpBfCpQqfMNU")
+    url: StringProperty(default="https://gateway-us-east.404.xyz:4443")
+    token: StringProperty(default="1d5ef479-2239-4b2d-add6-9717cf068afc")
     uid: StringProperty()
     data_collection: BoolProperty(default=True)
     data_collection_notice: BoolProperty(default=False)

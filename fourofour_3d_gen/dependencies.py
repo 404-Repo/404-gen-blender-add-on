@@ -10,6 +10,7 @@ def installed() -> bool:
         import pydantic
         import websocket
         import mixpanel
+        import pyspz
 
         return True
     except:

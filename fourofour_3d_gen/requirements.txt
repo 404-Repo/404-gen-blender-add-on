@@ -1,4 +1,4 @@
 numpy==1.24.3
-websocket-client==1.8.0
-pydantic==2.10.3
 mixpanel==4.10.1
+pydantic==2.11.7
+git+https://github.com/404-Repo/spz.git@0.1

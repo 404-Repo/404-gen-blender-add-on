@@ -2,53 +2,61 @@ import bpy
 import base64
 import json
 import tempfile
-import websocket
+import time
+import pyspz
 
+from typing import cast
 
 from .protocol import Auth, PromptData, TaskStatus, TaskUpdate
+from .gateway.gateway_api import GatewayApi
+from .gateway.gateway_task import GatewayTask, GatewayTaskStatusResponse, GatewayTaskStatus
 
 
-def request_model(prompt: str) -> tuple[None, None] | tuple[str, str]:
-    url = bpy.context.preferences.addons[__package__].preferences.url
-    api_key = bpy.context.preferences.addons[__package__].preferences.token
+_GATEWAY_STATUS_CHECK_INTERVAL_SEC: int = 5
+_GATEWAY_TASK_TIMEOUT_SEC: int = 10 * 60 # 10 minutes
+
+
+class GatewayErrorBase(Exception):
+    pass
+
+
+class GatewayTimeoutError(GatewayErrorBase):
+    pass
+
+
+class GatewayFailureError(GatewayErrorBase):
+    pass
+
+
+def request_model(prompt: str) -> str | None:
+    gateway_url = bpy.context.preferences.addons[__package__].preferences.url
+    gateway_api_key = bpy.context.preferences.addons[__package__].preferences.token
     filepath = None
-    winner_hotkey = None
 
-    def on_message(ws, message):
-        nonlocal filepath, winner_hotkey
-        update = TaskUpdate(**json.loads(message))
-        if update.status == TaskStatus.STARTED:
-            print("Task started")
-        elif update.status == TaskStatus.FIRST_RESULTS:
-            score = update.results.score if update.results else None
-            assets = update.results.assets or "" if update.results else ""
-            print(f"First results. Score: {score}. Size: {len(assets)}")
-        elif update.status == TaskStatus.BEST_RESULTS:
-            score = update.results.score if update.results else None
-            assets = update.results.assets or "" if update.results else ""
-            print(f"Best results. Score: {score}. Size: {len(assets)}")
-            print(f"Stats: {update.statistics}")
+    gateway_api = GatewayApi(gateway_url=gateway_url, gateway_api_key=gateway_api_key)
 
-            if assets:
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".ply") as temp_file:
-                    temp_file.write(base64.b64decode(assets.encode("utf-8")))
-                    filepath = temp_file.name
-                    ws.close()
+    task = gateway_api.add_task(text_prompt=prompt)
+    print(f"Task added: {task.id}")
 
-    def on_error(ws, error):
-        print(f"WebSocket connection error: {error}")
+    task_status = GatewayTaskStatus.NO_RESULT
+    start_time = time.time()
+    while task_status not in [GatewayTaskStatus.SUCCESS, GatewayTaskStatus.FAILURE]:
+        if time.time() - start_time > _GATEWAY_TASK_TIMEOUT_SEC:
+            raise GatewayTimeoutError("Gateway timeout error")
+        time.sleep(_GATEWAY_STATUS_CHECK_INTERVAL_SEC)
+        task_status = gateway_api.get_status(task=task).status
+        print(f"Task status: {task_status}")
 
-    def on_close(ws, close_status_code, close_msg):
-        print(f"WebSocket connection closed: {close_status_code} {close_msg}")
+    if task_status == GatewayTaskStatus.FAILURE:
+        raise GatewayFailureError("Gateway failure error")
 
-    def on_open(ws):
-        auth_data = Auth(api_key=api_key).dict()
-        prompt_data = PromptData(prompt=prompt, send_first_results=True).dict()
-        ws.send(json.dumps(auth_data))
-        ws.send(json.dumps(prompt_data))
+    if task_status == GatewayTaskStatus.SUCCESS:
+        spz_data = gateway_api.get_result(task=task)
+        print(f"Received result for task: {task.id}")
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".ply") as temp_file:
+            ply_data = cast(bytes, pyspz.decompress(spz_data, include_normals=False))
+            temp_file.write(ply_data)
+            filepath = temp_file.name
+            print(f"Saved result to: {filepath}")
 
-    ws = websocket.WebSocketApp(url, on_message=on_message, on_error=on_error, on_close=on_close)
-    ws.on_open = on_open
-    ws.run_forever()
-
-    return (filepath, winner_hotkey)
+    return filepath

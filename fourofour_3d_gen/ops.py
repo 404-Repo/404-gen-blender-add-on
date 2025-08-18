@@ -25,7 +25,7 @@ class GenerateOperator(Operator):
             threegen.in_progress = False
             return {"FINISHED"}
 
-        model_filepath, winner_hotkey = request_model(threegen.prompt)
+        model_filepath = request_model(threegen.prompt)
 
         if not model_filepath:
             errmsg = f'Could not generate a model for the prompt "{threegen.prompt}"'
@@ -35,7 +35,7 @@ class GenerateOperator(Operator):
 
         track("Generate", {"prompt": threegen.prompt, "success": True, "msg": ""})
         name = re.sub(r"\s+", "_", threegen.prompt)
-        import_gs(model_filepath, name, winner_hotkey)
+        import_gs(model_filepath, name)
         self.n_generated += 1
         threegen.progress = self.n_generated / threegen.n_generations
 
