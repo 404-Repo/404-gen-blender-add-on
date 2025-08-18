@@ -3,9 +3,7 @@ import base64
 import json
 import tempfile
 import time
-import pyspz
-
-from typing import cast
+from .spz_loader import get_spz
 
 from .protocol import Auth, PromptData, TaskStatus, TaskUpdate
 from .gateway.gateway_api import GatewayApi
@@ -53,8 +51,10 @@ def request_model(prompt: str) -> str | None:
     if task_status == GatewayTaskStatus.SUCCESS:
         spz_data = gateway_api.get_result(task=task)
         print(f"Received result for task: {task.id}")
+
+        loader = get_spz()
         with tempfile.NamedTemporaryFile(delete=False, suffix=".ply") as temp_file:
-            ply_data = cast(bytes, pyspz.decompress(spz_data, include_normals=False))
+            ply_data = loader.decompress(spz_data, include_normals=False)
             temp_file.write(ply_data)
             filepath = temp_file.name
             print(f"Saved result to: {filepath}")
