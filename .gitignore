@@ -133,3 +133,4 @@ dmypy.json
 *.sw*
 
 *.blend1
+spz_version.txt

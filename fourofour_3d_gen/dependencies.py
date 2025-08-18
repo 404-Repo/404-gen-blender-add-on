@@ -2,6 +2,7 @@ import subprocess
 import sys
 import os
 from pathlib import Path
+from .spz_updater import SPZUpdater
 
 
 def installed() -> bool:
@@ -10,7 +11,9 @@ def installed() -> bool:
         import pydantic
         import websocket
         import mixpanel
-        import pyspz
+        
+        if SPZUpdater.need_update():
+            return False
 
         return True
     except:
@@ -48,8 +51,8 @@ def install_dependencies_from_requirements():
 
 def install() -> None:
     install_pip()
-
     install_dependencies_from_requirements()
+    SPZUpdater.update()
 
 
 if __name__ == "__main__":
