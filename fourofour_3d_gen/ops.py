@@ -33,6 +33,8 @@ class GenerateOperator(Operator):
         
         # Request model if we haven't started yet
         if self._client.task_id is None:
+            if self._client.task_id is not None:
+                return {"FINISHED"}
             self._client.request_model(threegen.prompt)
             return {"PASS_THROUGH"}
         
@@ -44,8 +46,8 @@ class GenerateOperator(Operator):
                 return {"PASS_THROUGH"}
             else:
                 print(f"{self._client.task_id}: Got result.")
-                track("Generate", {"prompt": threegen.prompt, "success": True, "msg": ""})
-                name = re.sub(r"\s+", "_", threegen.prompt)
+                track("Generate", {"prompt": self._client.prompt, "success": True, "msg": ""})
+                name = re.sub(r"\s+", "_", self._client.prompt)
                 import_gs(model_filepath, name)
                 self.n_generated += 1
                 threegen.progress = self.n_generated / threegen.n_generations

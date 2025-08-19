@@ -9,7 +9,6 @@ def installed() -> bool:
     try:
         import numpy
         import pydantic
-        import websocket
         import mixpanel
         
         if SPZUpdater.need_update():

@@ -38,6 +38,10 @@ class Client:
     @property
     def task_id(self) -> str | None:
         return self._task.id if self._task else None
+    
+    @property
+    def prompt(self) -> str | None:
+        return self._task.prompt if self._task else None
 
     def request_model(self, prompt: str) -> None:
         task = self._gateway_api.add_task(text_prompt=prompt)
