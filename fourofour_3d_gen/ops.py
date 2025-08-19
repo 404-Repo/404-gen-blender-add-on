@@ -25,8 +25,6 @@ class GenerateOperator(Operator):
             threegen.in_progress = False
             return {"FINISHED"}
         
-        print(f"Modal event: {event.type}")
-        
         # Only process on timer events
         if event.type != 'TIMER':
             return {"PASS_THROUGH"}
