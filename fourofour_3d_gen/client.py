@@ -26,37 +26,52 @@ class GatewayFailureError(GatewayErrorBase):
     pass
 
 
-def request_model(prompt: str) -> str | None:
-    gateway_url = bpy.context.preferences.addons[__package__].preferences.url
-    gateway_api_key = bpy.context.preferences.addons[__package__].preferences.token
-    filepath = None
+class Client:
 
-    gateway_api = GatewayApi(gateway_url=gateway_url, gateway_api_key=gateway_api_key)
+    def __init__(self) -> None:
+        self._task: GatewayTask | None = None
+        self._task_start_time: float | None = None
+        gateway_url = bpy.context.preferences.addons[__package__].preferences.url
+        gateway_api_key = bpy.context.preferences.addons[__package__].preferences.token
+        self._gateway_api: GatewayApi = GatewayApi(gateway_url=gateway_url, gateway_api_key=gateway_api_key)
 
-    task = gateway_api.add_task(text_prompt=prompt)
-    print(f"Task added: {task.id}")
+    @property
+    def task_id(self) -> str | None:
+        return self._task.id if self._task else None
 
-    task_status = GatewayTaskStatus.NO_RESULT
-    start_time = time.time()
-    while task_status not in [GatewayTaskStatus.SUCCESS, GatewayTaskStatus.FAILURE]:
-        if time.time() - start_time > _GATEWAY_TASK_TIMEOUT_SEC:
+    def request_model(self, prompt: str) -> None:
+        task = self._gateway_api.add_task(text_prompt=prompt)
+        print(f"Task added: {task.id}")
+        self._task = task
+        self._task_start_time = time.time()
+    
+    def get_result(self) -> str | None:
+        if self._task is None or self._task_start_time is None:
+            return None
+            
+        # Check for timeout
+        if time.time() - self._task_start_time > _GATEWAY_TASK_TIMEOUT_SEC:
             raise GatewayTimeoutError("Gateway timeout error")
-        time.sleep(_GATEWAY_STATUS_CHECK_INTERVAL_SEC)
-        task_status = gateway_api.get_status(task=task).status
-        print(f"Task status: {task_status}")
 
-    if task_status == GatewayTaskStatus.FAILURE:
-        raise GatewayFailureError("Gateway failure error")
+        task_status_response = self._gateway_api.get_status(task=self._task)
+        task_status = task_status_response.status
 
-    if task_status == GatewayTaskStatus.SUCCESS:
-        spz_data = gateway_api.get_result(task=task)
-        print(f"Received result for task: {task.id}")
+        if task_status not in [GatewayTaskStatus.SUCCESS, GatewayTaskStatus.FAILURE]:
+            return None
+        
+        if task_status == GatewayTaskStatus.FAILURE:
+            raise GatewayFailureError(f"Gateway failure error")
 
-        loader = get_spz()
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".ply") as temp_file:
-            ply_data = loader.decompress(spz_data, include_normals=False)
-            temp_file.write(ply_data)
-            filepath = temp_file.name
-            print(f"Saved result to: {filepath}")
+        if task_status == GatewayTaskStatus.SUCCESS:
+            spz_data = self._gateway_api.get_result(task=self._task)
+            print(f"Received result for task: {self._task.id}")
 
-    return filepath
+            loader = get_spz()
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".ply") as temp_file:
+                ply_data = loader.decompress(spz_data, include_normals=False)
+                temp_file.write(ply_data)
+                filepath = temp_file.name
+                print(f"Saved result to: {filepath}")
+            return filepath
+
+        return None

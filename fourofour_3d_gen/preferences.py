@@ -34,7 +34,7 @@ class ConsentOperator(bpy.types.Operator):
 
 class ThreegenPreferences(AddonPreferences):
     bl_idname = __package__
-    url: StringProperty(default="https://gateway-us-east.404.xyz:4443")
+    url: StringProperty(default="https://gateway-us-west.404.xyz:4443")
     token: StringProperty(default="1d5ef479-2239-4b2d-add6-9717cf068afc")
     uid: StringProperty()
     data_collection: BoolProperty(default=True)
