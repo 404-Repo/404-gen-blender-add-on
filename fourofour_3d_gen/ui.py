@@ -107,30 +107,30 @@ class ConversionPanel(Panel):
 
 
 
-# class ConsentPanel(bpy.types.Panel):
-#     bl_space_type = "VIEW_3D"
-#     bl_region_type = "UI"
-#     bl_category = "404"
-#     bl_idname = "Threegen_PT_consent"
-#     bl_label = "Data Collection Notice"
+class ConsentPanel(bpy.types.Panel):
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "404"
+    bl_idname = "Threegen_PT_consent"
+    bl_label = "Data Collection Notice"
 
-#     @classmethod
-#     def poll(cls, context: bpy.types.Context) -> bool:
-#         notified = bpy.context.preferences.addons[__package__].preferences.data_collection_notice
-#         return not notified
+    @classmethod
+    def poll(cls, context: bpy.types.Context) -> bool:
+        notified = bpy.context.preferences.addons[__package__].preferences.data_collection_notice
+        return not notified
 
-#     def draw(self, context: bpy.types.Context):
-#         layout = self.layout
-#         box = layout.box()
-#         text_col = box.column(align=True)
-#         text_col.scale_y = 0.8
-#         width = context.region.width
-#         ui_scale = context.preferences.system.ui_scale
-#         for text in utils.wrap_text(const.TRACKING_MSG, (4 / (5 * ui_scale)) * width):
-#             text_col.label(text=text)
-#         row = layout.row()
-#         row.scale_y = 1.5
-#         row.operator(ConsentOperator.bl_idname)
+    def draw(self, context: bpy.types.Context):
+        layout = self.layout
+        box = layout.box()
+        text_col = box.column(align=True)
+        text_col.scale_y = 0.8
+        width = context.region.width
+        ui_scale = context.preferences.system.ui_scale
+        for text in utils.wrap_text(const.TRACKING_MSG, (4 / (5 * ui_scale)) * width):
+            text_col.label(text=text)
+        row = layout.row()
+        row.scale_y = 1.5
+        row.operator(ConsentOperator.bl_idname)
 
 
 class SocialPanel(Panel):
