@@ -5,7 +5,7 @@ from bpy.props import StringProperty, BoolProperty, EnumProperty
 import os
 import re
 
-from .client import request_model
+from .client import Client
 from .gaussian_splatting import import_gs
 from .data_collection import track
 from.mesh_conversion import generate_mesh, generate_uvs, bake_texture
@@ -24,30 +24,54 @@ class GenerateOperator(Operator):
         if self.n_generated == threegen.n_generations:
             threegen.in_progress = False
             return {"FINISHED"}
-
-        model_filepath, winner_hotkey = request_model(threegen.prompt)
-
-        if not model_filepath:
+        
+        # Only process on timer events
+        if event.type != 'TIMER':
+            return {"PASS_THROUGH"}
+        
+        # Request model if we haven't started yet
+        if self._client.task_id is None:
+            if self._client.task_id is not None:
+                return {"FINISHED"}
+            self._client.request_model(threegen.prompt)
+            return {"PASS_THROUGH"}
+        
+        # Check for results
+        try:
+            model_filepath = self._client.get_result()
+            if model_filepath is None:
+                print(f"{self._client.task_id}: No result yet")
+                return {"PASS_THROUGH"}
+            else:
+                print(f"{self._client.task_id}: Got result.")
+                track("Generate", {"prompt": self._client.prompt, "success": True, "msg": ""})
+                name = re.sub(r"\s+", "_", self._client.prompt)
+                import_gs(model_filepath, name)
+                self.n_generated += 1
+                threegen.progress = self.n_generated / threegen.n_generations
+                
+                # Check if we're done
+                if self.n_generated == threegen.n_generations:
+                    threegen.in_progress = False
+                    return {"FINISHED"}
+                else:
+                    return {"PASS_THROUGH"}
+        except Exception as e:
+            print(f"Error occurred: {str(e)}")
             errmsg = f'Could not generate a model for the prompt "{threegen.prompt}"'
             self.report({"ERROR"}, errmsg)
             track("Generate", {"prompt": threegen.prompt, "success": False, "msg": errmsg})
+            threegen.in_progress = False
             return {"CANCELLED"}
-
-        track("Generate", {"prompt": threegen.prompt, "success": True, "msg": ""})
-        name = re.sub(r"\s+", "_", threegen.prompt)
-        import_gs(model_filepath, name, winner_hotkey)
-        self.n_generated += 1
-        threegen.progress = self.n_generated / threegen.n_generations
-
-        return {"PASS_THROUGH"}
 
     def invoke(self, context: Context, event: Event):
         threegen = context.window_manager.threegen
         track("Generate", {"prompt": threegen.prompt, "count": threegen.n_generations})
         self.n_generated = 0
+        self._client: Client = Client()
         threegen.progress = 0.0
         threegen.in_progress = True
-
+        self._timer = context.window_manager.event_timer_add(5, window=context.window)
         context.window_manager.modal_handler_add(self)
         return {"RUNNING_MODAL"}
 

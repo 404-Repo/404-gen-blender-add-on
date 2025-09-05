@@ -8,7 +8,6 @@ def installed() -> bool:
     try:
         import numpy
         import pydantic
-        import websocket
         import mixpanel
 
         return True
@@ -44,15 +43,20 @@ def install_dependencies_from_requirements():
         env=env_var,
     )
 
+def update_spz():
+    from .spz_updater import SPZUpdater
+
+    if SPZUpdater.need_update():
+        SPZUpdater.update()
+
 
 def install() -> None:
     install_pip()
-
     install_dependencies_from_requirements()
-
 
 if __name__ == "__main__":
     if installed():
         print("dependencies installed")
     else:
         install()
+    update_spz()

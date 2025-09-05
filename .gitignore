@@ -2,6 +2,7 @@
 __pycache__/
 *.py[cod]
 *$py.class
+.env
 
 # C extensions
 *.so
@@ -132,3 +133,4 @@ dmypy.json
 *.sw*
 
 *.blend1
+spz_version.txt
