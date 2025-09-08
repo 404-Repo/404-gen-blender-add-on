@@ -9,6 +9,10 @@ def installed() -> bool:
         import numpy
         import pydantic
         import mixpanel
+        from .spz_updater import SPZUpdater
+
+        if SPZUpdater.need_update():
+            return False
 
         return True
     except:
@@ -42,6 +46,26 @@ def install_dependencies_from_requirements():
         check=True,
         env=env_var,
     )
+    from .spz_updater import SPZUpdater
+    SPZUpdater.update()
+
+def uninstall_dependencies():
+    env_var = dict(os.environ)
+    # ensures pip installs dependencies on blender's python lib folder
+    env_var["PYTHONNOUSERSITE"] = "1"
+
+    requirements_path = Path(__file__).resolve().parent / "requirements.txt"
+
+    if not requirements_path.exists():
+        raise FileNotFoundError(
+            f"requirements.txt not found in {requirements_path.as_posix()}"
+        )
+
+    subprocess.run(
+        [sys.executable, "-m", "pip", "uninstall", "-r", requirements_path.as_posix(), "-y"],
+        check=True,
+        env=env_var,
+    )    
 
 def update_spz():
     from .spz_updater import SPZUpdater
@@ -53,6 +77,10 @@ def update_spz():
 def install() -> None:
     install_pip()
     install_dependencies_from_requirements()
+
+def uninstall() -> None:
+    install_pip()
+    uninstall_dependencies()
 
 if __name__ == "__main__":
     if installed():

@@ -15,6 +15,14 @@ class DependencyInstallationOperator(bpy.types.Operator):
     def execute(self, context: Context):
         dependencies.install()
         return {"FINISHED"}
+    
+class DependencyUninstallationOperator(bpy.types.Operator):
+    bl_idname = "threegen.uninstalldeps"
+    bl_label = "Uninstall Dependencies"
+
+    def execute(self, context: Context):
+        dependencies.uninstall()
+        return {"FINISHED"}
 
 
 class ConsentOperator(bpy.types.Operator):
@@ -40,6 +48,13 @@ class ThreegenPreferences(AddonPreferences):
     data_collection: BoolProperty(default=True)
     data_collection_notice: BoolProperty(default=False)
 
+    @classmethod
+    def poll(cls, context):
+        prefs = context.preferences.addons.get(__package__)
+        if not prefs:
+            return False
+        return prefs.preferences.data_collection_notice
+
     def draw(self, context: Context):
         layout: UILayout = self.layout
         col = layout.column()
@@ -54,6 +69,7 @@ class ThreegenPreferences(AddonPreferences):
                 col.prop(self, "url", text="URL")
                 col.prop(self, "token", text="API Key")
                 col.prop(self, "data_collection", text="Allow collection of anonymous usage data")
+                col.operator(DependencyUninstallationOperator.bl_idname)
 
         else:
             col.operator(DependencyInstallationOperator.bl_idname)
@@ -61,16 +77,10 @@ class ThreegenPreferences(AddonPreferences):
 
 classes = (
     DependencyInstallationOperator,
+    DependencyUninstallationOperator,
     ConsentOperator,
     ThreegenPreferences,
 )
 
+register, unregister = bpy.utils.register_classes_factory(classes)
 
-def register():
-    for cls in classes:
-        bpy.utils.register_class(cls)
-
-
-def unregister():
-    for cls in reversed(classes):
-        bpy.utils.unregister_class(cls)
