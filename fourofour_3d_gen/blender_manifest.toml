@@ -1,18 +1,32 @@
 schema_version = "1.0.0"
 
 id = "fourofour_3d_gen"
-version = "0.10.1"
+version = "0.11.0"
 name = "404 3D Generator"
 tagline = "404 3D Generator Extension"
 maintainer = "Ruben Hohndorf <ruben@atlas.design>"
 type = "add-on"
 
-# Optional link to documentation, support, source files, etc
 website = "https://github.com/404-Repo/three-gen-blender-plugin"
 tags = ["3D View"]
-blender_version_min = "4.2.0"
+blender_version_min = "4.5.0"
 license = [
   "SPDX:GPL-3.0-or-later",
+]
+
+wheels = [
+  "./wheels/annotated_types-0.7.0-py3-none-any.whl",
+  "./wheels/certifi-2025.8.3-py3-none-any.whl",
+  "./wheels/charset_normalizer-3.4.3-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
+  "./wheels/idna-3.10-py3-none-any.whl",
+  "./wheels/mixpanel-4.10.1-py2.py3-none-any.whl",
+  "./wheels/pydantic-2.11.7-py3-none-any.whl",
+  "./wheels/pydantic_core-2.33.2-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+  "./wheels/requests-2.32.5-py3-none-any.whl",
+  "./wheels/six-1.17.0-py2.py3-none-any.whl",
+  "./wheels/typing_extensions-4.15.0-py3-none-any.whl",
+  "./wheels/typing_inspection-0.4.1-py3-none-any.whl",
+  "./wheels/urllib3-2.5.0-py3-none-any.whl",
 ]
 
 [permissions]

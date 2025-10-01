@@ -1,55 +1,72 @@
 import bpy
-from bpy.types import Context, Panel
+from bpy.types import Context, Panel, UILayout
 
-from .ops import GenerateOperator, ImportOperator, MeshConversionOperator
+from .client import get_client
+from .gateway.gateway_task import GatewayTaskStatus
+from .ops import GenerateOperator, MeshConversionOperator, RemoveTaskOperator
+from.preferences import ConsentOperator
 
-
-class MainPanel(Panel):
+class THREEGEN_PT_MainPanel(Panel):
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "404"
-    bl_idname = "Threegen_PT_main"
-    bl_label = "3DGS Generation"
+    bl_idname = "THREEGEN_PT_MainPanel"
+    bl_label = "Generation"
 
     @classmethod
     def poll(cls, context):
         notified = bpy.context.preferences.addons[__package__].preferences.data_collection_notice
         return notified
 
+    def draw_task_list(self, context:Context, layout:UILayout):
+        client = get_client()
+
+        if not client.has_tasks():
+            return
+        
+        col = layout.column()
+        row = col.row()
+        row.label(text="Tasks")
+        row = col.row()
+        col = row.column()
+        for task in client._tasks:
+            row = col.row()
+            task_status_icon = "SORTTIME"
+            if task.status == GatewayTaskStatus.FAILURE:
+                task_status_icon = "ERROR"
+            if task.status == GatewayTaskStatus.SUCCESS:
+                task_status_icon = "CHECKMARK"           
+            row.label(text=task.prompt, icon=task_status_icon)
+            task_obj_type_icon = 'OUTLINER_DATA_POINTCLOUD'
+            if task.obj_type == 'MESH':
+                task_obj_type_icon = 'MESH_DATA'
+            row.label(text="", icon=task_obj_type_icon)
+            op = row.operator(RemoveTaskOperator.bl_idname, text="", icon="TRASH")
+            op.task_id = task.id
+
     def draw(self, context: Context):
         layout = self.layout
         threegen = context.window_manager.threegen
 
-        box = layout.box()
-        row = box.row()
+        row = layout.row()
         row.prop(
             threegen,
             "prompt",
             text="Prompt",
         )
-        row = box.row()
-        split = row.split(factor=0.25)
-
-        col = split.column()
-        col.prop(threegen, "n_generations", text="")
-
-        if threegen.in_progress:
-            box.progress(
-                factor=threegen.progress,
-                type="BAR",
-            )
-
-        col = split.column()
-        col.operator(GenerateOperator.bl_idname)
         row = layout.row()
-        row.operator(ImportOperator.bl_idname)
+        row.prop(threegen, "obj_type", expand=True)
+        row = layout.row()
+        row.operator(GenerateOperator.bl_idname)
+        row = layout.row()
+        self.draw_task_list(context, row)
 
 
-class DisplaySettingsPanel(Panel):
+class THREEGEN_PT_DisplaySettingsPanel(Panel):
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "404"
-    bl_idname = "Threegen_PT_settings"
+    bl_idname = "THREEGEN_PT_DisplaySettingsPanel"
     bl_label = "Splat Display Settings"
 
     @classmethod
@@ -73,11 +90,11 @@ class DisplaySettingsPanel(Panel):
         row.prop(obj.modifiers["Gaussian Splatting"], '["Socket_3"]', text="Display Percentage")
 
 
-class ConversionPanel(Panel):
+class THREEGEN_PT_ConversionPanel(Panel):
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "404"
-    bl_idname = "Threegen_PT_conversion"
+    bl_idname = "THREEGEN_PT_ConversionPanel"
     bl_label = "Mesh Conversion"
 
     @classmethod
@@ -91,6 +108,8 @@ class ConversionPanel(Panel):
         threegen = context.window_manager.threegen
         layout = self.layout
 
+        row = layout.row()
+        row.prop(threegen, "keep_original", text="Keep Original")       
         row = layout.row()
         row.prop(threegen, "voxel_size", text="Min Detail Size")
         row = layout.row()
@@ -107,11 +126,11 @@ class ConversionPanel(Panel):
 
 
 
-class ConsentPanel(bpy.types.Panel):
+class THREEGEN_PT_ConsentPanel(bpy.types.Panel):
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "404"
-    bl_idname = "Threegen_PT_consent"
+    bl_idname = "THREEGEN_PT_ConsentPanel"
     bl_label = "Data Collection Notice"
 
     @classmethod
@@ -133,11 +152,11 @@ class ConsentPanel(bpy.types.Panel):
         row.operator(ConsentOperator.bl_idname)
 
 
-class SocialPanel(Panel):
+class THREEGEN_PT_SocialPanel(Panel):
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "404"
-    bl_idname = "Threegen_PT_social"
+    bl_idname = "THREEGEN_PT_SocialPanel"
     bl_label = "Connect With Us"
     bl_options = {"DEFAULT_CLOSED"}
 
@@ -152,10 +171,10 @@ class SocialPanel(Panel):
 
 
 classes = (
-    MainPanel,
-    DisplaySettingsPanel,
-    ConversionPanel,
-    SocialPanel,
+    THREEGEN_PT_MainPanel,
+    THREEGEN_PT_DisplaySettingsPanel,
+    THREEGEN_PT_ConversionPanel,
+    THREEGEN_PT_SocialPanel,
 )
 
 register, unregister = bpy.utils.register_classes_factory(classes)

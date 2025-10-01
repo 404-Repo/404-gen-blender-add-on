@@ -1,10 +1,11 @@
 import bpy
-import mathutils
-import numpy as np
+from mathutils import Quaternion
+import math
 import time
 import os
 
-from .plyfile import PlyData
+# from .plyfile import PlyData
+from .ply import read_custom_ply
 
 RECOMMENDED_MAX_GAUSSIANS = 200_000
 
@@ -26,101 +27,32 @@ def import_gs(filepath: str, name: str):
     start_time_0 = time.time()
     start_time = time.time()
 
-    plydata = PlyData.read(filepath)
+    data = read_custom_ply(filepath)
+    data = process_attributes(data)
+    print(f"Processed {data['count']} splats")
+    print(len(data["xyz"])/3)
+    assert(data['count'] == len(data["xyz"])/3 )
+    assert(data['count'] == len(data["opacity"]) )
+    assert(data['count'] == len(data["scale"])/3 )
+    assert(data['count'] == len(data["rot"])/3 )
+
 
     print(f"PLY loaded in {time.time() - start_time} seconds")
 
     start_time = time.time()
-
-    xyz = np.stack(
-        (
-            np.asarray(plydata.elements[0]["x"]),
-            np.asarray(plydata.elements[0]["y"]),
-            np.asarray(plydata.elements[0]["z"]),
-        ),
-        axis=1,
-    )
-
-    N = len(xyz)
-    print(f"ply data: {plydata.elements[0]}")
-
-    if "opacity" in plydata.elements[0]:
-        log_opacities = np.asarray(plydata.elements[0]["opacity"])[..., np.newaxis]
-        opacities = 1 / (1 + np.exp(-log_opacities))
-    else:
-        log_opacities = np.asarray(1)[..., np.newaxis]
-        opacities = 1 / (1 + np.exp(-log_opacities))
-
-    gamma = 2.2
-    color = np.zeros((N, 3, 1))
-    color[:, 0, 0] = np.asarray(plydata.elements[0]["f_dc_0"])
-    color[:, 1, 0] = np.asarray(plydata.elements[0]["f_dc_1"])
-    color[:, 2, 0] = np.asarray(plydata.elements[0]["f_dc_2"])
-    color = color * 0.3 + 0.5  # ** gamma
-
-    log_scales = np.stack(
-        (
-            np.asarray(plydata.elements[0]["scale_0"]),
-            np.asarray(plydata.elements[0]["scale_1"]),
-            np.asarray(plydata.elements[0]["scale_2"]),
-        ),
-        axis=1,
-    )
-
-    scales = np.exp(log_scales)
-
-    quats = np.stack(
-        (
-            np.asarray(plydata.elements[0]["rot_0"]),
-            np.asarray(plydata.elements[0]["rot_1"]),
-            np.asarray(plydata.elements[0]["rot_2"]),
-            np.asarray(plydata.elements[0]["rot_3"]),
-        ),
-        axis=1,
-    )
-
-    rots_euler = np.zeros((N, 3))
-
-    for i in range(N):
-        quat = mathutils.Quaternion(quats[i].tolist())
-        euler = quat.to_euler()
-        rots_euler[i] = (euler.x, euler.y, euler.z)
-
-    print("Data loaded in", time.time() - start_time, "seconds")
-
-    start_time = time.time()
-
+    
     mesh = bpy.data.meshes.new(name="Mesh")
-    mesh.from_pydata(xyz.tolist(), [], [])
+    mesh.from_pydata([(data["xyz"][i], data["xyz"][i+1], data["xyz"][i+2]) for i in range(0, len(data["xyz"]), 3)], [], [])
     mesh.update()
 
     print("Mesh loaded in", time.time() - start_time, "seconds")
 
     start_time = time.time()
 
-    log_opacity_attr = mesh.attributes.new(name="log_opacity", type="FLOAT", domain="POINT")
-    log_opacity_attr.data.foreach_set("value", log_opacities.flatten())
-
-    opacity_attr = mesh.attributes.new(name="opacity", type="FLOAT", domain="POINT")
-    opacity_attr.data.foreach_set("value", opacities.flatten())
-
-    scale_attr = mesh.attributes.new(name="scale", type="FLOAT_VECTOR", domain="POINT")
-    scale_attr.data.foreach_set("vector", scales.flatten())
-
-    logscale_attr = mesh.attributes.new(name="logscale", type="FLOAT_VECTOR", domain="POINT")
-    logscale_attr.data.foreach_set("vector", log_scales.flatten())
-
-    color_attr = mesh.attributes.new(name="diffuse_color", type="FLOAT_VECTOR", domain="POINT")
-    color_attr.data.foreach_set("vector", color.flatten())
-
-    rot_quatxyz_attr = mesh.attributes.new(name="quatxyz", type="FLOAT_VECTOR", domain="POINT")
-    rot_quatxyz_attr.data.foreach_set("vector", quats[:, :3].flatten())
-
-    rot_quatw_attr = mesh.attributes.new(name="quatw", type="FLOAT", domain="POINT")
-    rot_quatw_attr.data.foreach_set("value", quats[:, 3].flatten())
-
-    rot_euler_attr = mesh.attributes.new(name="rot_euler", type="FLOAT_VECTOR", domain="POINT")
-    rot_euler_attr.data.foreach_set("vector", rots_euler.flatten())
+    mesh.attributes.new(name="diffuse_color", type='FLOAT_VECTOR', domain='POINT').data.foreach_set("vector", data["f_dc"])
+    mesh.attributes.new(name="scale", type='FLOAT_VECTOR', domain='POINT').data.foreach_set("vector", data["scale"])
+    mesh.attributes.new(name="opacity", type='FLOAT', domain='POINT').data.foreach_set("value", data["opacity"])
+    mesh.attributes.new(name="rot_euler", type='FLOAT_VECTOR', domain='POINT').data.foreach_set("vector", data["rot"])
 
     obj = bpy.data.objects.new(name, mesh)
     bpy.context.collection.objects.link(obj)
@@ -128,7 +60,7 @@ def import_gs(filepath: str, name: str):
     obj.select_set(True)
 
     obj.rotation_mode = "XYZ"
-    obj.rotation_euler = (-np.pi / 2, 0, 0)
+    obj.rotation_euler = (-math.pi / 2, 0, 0)
     obj.rotation_euler[0] = 1.5708
 
     print("Mesh attributes added in", time.time() - start_time, "seconds")
@@ -137,9 +69,36 @@ def import_gs(filepath: str, name: str):
 
     print("Total Processing time: ", time.time() - start_time_0)
 
+    return obj
+
 
 def setup_nodes(obj):
     start_time = time.time()
     m = obj.modifiers.new(name="Gaussian Splatting", type="NODES")
     m.node_group = bpy.data.node_groups["GaussianSplatting"]
     print("Geometry nodes created in", time.time() - start_time, "seconds")
+
+
+def process_attributes(data, euler_order="XYZ"):
+    xyz = data["xyz"]
+    scale = data["scale"]
+    opacity = [1.0 / (1.0 + math.exp(-o)) for o in data["opacity"]]
+    f_dc = [(c * 0.3 + 0.5) for c in data["f_dc"]]
+
+    rot = []
+    q_vals = data["rot"]
+    for i in range(0, len(q_vals), 4):
+        q = Quaternion(q_vals[i:i+4])
+        e = q.to_euler(euler_order)
+        rot.extend((e.x, e.y, e.z))
+
+    scale = [math.exp(s) for s in data["scale"]]
+
+    return {
+        "xyz": xyz,
+        "f_dc": f_dc,
+        "opacity": opacity,
+        "scale": scale,
+        "rot": rot,
+        "count": data["count"]
+    }

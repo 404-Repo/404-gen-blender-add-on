@@ -144,3 +144,4 @@ def bake_texture(source, target, tex_resolution):
     bake_image.filepath_raw = texture_name + ".png"
     bake_image.file_format = 'PNG'
     bake_image.save()
+    bake_image.pack()

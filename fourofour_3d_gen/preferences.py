@@ -3,26 +3,8 @@ from bpy.props import StringProperty, BoolProperty
 import bpy
 import uuid
 
-from . import dependencies
 from . import constants as const
 from . import utils
-
-
-class DependencyInstallationOperator(bpy.types.Operator):
-    bl_idname = "threegen.installdeps"
-    bl_label = "Install Dependencies"
-
-    def execute(self, context: Context):
-        dependencies.install()
-        return {"FINISHED"}
-    
-class DependencyUninstallationOperator(bpy.types.Operator):
-    bl_idname = "threegen.uninstalldeps"
-    bl_label = "Uninstall Dependencies"
-
-    def execute(self, context: Context):
-        dependencies.uninstall()
-        return {"FINISHED"}
 
 
 class ConsentOperator(bpy.types.Operator):
@@ -58,26 +40,21 @@ class ThreegenPreferences(AddonPreferences):
     def draw(self, context: Context):
         layout: UILayout = self.layout
         col = layout.column()
-        if dependencies.installed():
-            if not self.data_collection_notice:
-                width = context.region.width
-                ui_scale = context.preferences.system.ui_scale
-                for text in utils.wrap_text(const.TRACKING_MSG, 2500):
-                    col.label(text=text)
-                col.operator(ConsentOperator.bl_idname)
-            else:
-                col.prop(self, "url", text="URL")
-                col.prop(self, "token", text="API Key")
-                col.prop(self, "data_collection", text="Allow collection of anonymous usage data")
-                col.operator(DependencyUninstallationOperator.bl_idname)
-
+        if not self.data_collection_notice:
+            width = context.region.width
+            ui_scale = context.preferences.system.ui_scale
+            for text in utils.wrap_text(const.TRACKING_MSG, 2500):
+                col.label(text=text)
+            col.operator(ConsentOperator.bl_idname)
         else:
-            col.operator(DependencyInstallationOperator.bl_idname)
+            col.prop(self, "url", text="URL")
+            col.prop(self, "token", text="API Key")
+            col.prop(self, "data_collection", text="Allow collection of anonymous usage data")
+
+
 
 
 classes = (
-    DependencyInstallationOperator,
-    DependencyUninstallationOperator,
     ConsentOperator,
     ThreegenPreferences,
 )
