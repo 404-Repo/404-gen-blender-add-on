@@ -6,7 +6,6 @@ from pathlib import Path
 
 def installed() -> bool:
     try:
-        import numpy
         import pydantic
         import mixpanel
         from .spz_updater import SPZUpdater

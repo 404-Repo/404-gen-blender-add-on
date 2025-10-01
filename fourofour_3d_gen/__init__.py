@@ -1,35 +1,33 @@
-from . import dependencies
+import bpy
+from pathlib import Path
+
 from . import preferences
+from . import ops, ui, props
+from .spz_updater import SPZUpdater
+from .spz_loader import init_spz
 
-modules = []
 
+modules = [
+    preferences,
+    ops,
+    ui,
+    props,
+]
 
 def register():
-    preferences.register()
-    modules.append(preferences)
-    
-    if dependencies.installed():
-        from . import props, ui, ops
+    if SPZUpdater.need_update():
+        SPZUpdater.update()
 
-        ui.register()
-        props.register()
-        ops.register()
-        modules.append(ops)
-        modules.append(ui)
-        modules.append(props)
-
-        try:
-            from .spz_loader import init_spz
-            from pathlib import Path
-
-            pkg_dir = Path(__file__).resolve().parent
-            print(f"Initializing SPZ with library path: {pkg_dir}")
-            init_spz(str(pkg_dir))
-        except Exception as e:
-            # Report failure to load native SPZ library to console only
-            print(f"SPZ initialization failed: {e}")
-
-
-def unregister():
     for m in modules:
+        m.register()
+
+    try:
+        pkg_dir = Path(__file__).resolve().parent
+        print(f"Initializing SPZ with library path: {pkg_dir}")
+        init_spz(str(pkg_dir))
+    except Exception as e:
+        print(f"SPZ initialization failed: {e}")   
+    
+def unregister():
+    for m in reversed(modules):
         m.unregister()
