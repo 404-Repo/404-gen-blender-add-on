@@ -20,6 +20,9 @@ jobs:
         id: vars
         run: echo "::set-output name=tag::${GITHUB_REF##*/}"
 
+      - name: Run dependency download script
+        run: bash ./download_dependencies.sh
+
       - name: Zip subfolder
         run: |
           subfolder="./fourofour_3d_gen"
