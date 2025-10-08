@@ -3,7 +3,7 @@ from bpy.types import Context, Panel, UILayout
 
 from .client import get_client
 from .gateway.gateway_task import GatewayTaskStatus
-from .ops import GenerateOperator, MeshConversionOperator, RemoveTaskOperator
+from .ops import GenerateOperator, MeshConversionOperator, RemoveTaskOperator, OpenImageOperator
 from.preferences import ConsentOperator
 
 class THREEGEN_PT_MainPanel(Panel):
@@ -49,11 +49,10 @@ class THREEGEN_PT_MainPanel(Panel):
         threegen = context.window_manager.threegen
 
         row = layout.row()
-        row.prop(
-            threegen,
-            "prompt",
-            text="Prompt",
-        )
+        row.prop(threegen, "prompt", text="Text")
+        row = layout.row(align=True)
+        row.prop(threegen, "image", text="Image")
+        row.operator(OpenImageOperator.bl_idname, text="", icon='IMAGE_DATA')
         row = layout.row()
         row.prop(threegen, "obj_type", expand=True)
         row = layout.row()

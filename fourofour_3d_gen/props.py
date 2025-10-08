@@ -3,6 +3,11 @@ import bpy
 
 class WindowManagerProps(bpy.types.PropertyGroup):
     prompt: bpy.props.StringProperty()
+    image: bpy.props.PointerProperty(
+        type=bpy.types.Image,
+        name="Image",
+        description="A custom image property"
+    )
     keep_original: bpy.props.BoolProperty(default=False)
     angle_limit: bpy.props.FloatProperty(default=1.0, precision=3)
     island_margin: bpy.props.FloatProperty(default=0.0, precision=3)
