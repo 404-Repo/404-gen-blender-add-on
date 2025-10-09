@@ -1,12 +1,26 @@
 import bpy
 
 
+def on_image_change(self, context):
+    if self.image_preview is None:
+        self.image_preview = bpy.data.textures.new("Image Preview", type='IMAGE')
+        self.image_preview.extension = 'CLIP'
+
+    self.image_preview.image = self.image
+    print("Updated Image Preview")
+
 class WindowManagerProps(bpy.types.PropertyGroup):
     prompt: bpy.props.StringProperty()
     image: bpy.props.PointerProperty(
         type=bpy.types.Image,
         name="Image",
-        description="A custom image property"
+        description="A custom image property",
+        update=on_image_change
+    )
+    image_preview: bpy.props.PointerProperty(
+        name="Texture",
+        type=bpy.types.Texture,
+        description="Linked texture for preview"
     )
     keep_original: bpy.props.BoolProperty(default=False)
     angle_limit: bpy.props.FloatProperty(default=1.0, precision=3)

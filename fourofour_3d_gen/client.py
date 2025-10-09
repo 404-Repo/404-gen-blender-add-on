@@ -1,4 +1,5 @@
 import bpy
+import os
 import re
 from io import BytesIO
 import tempfile
@@ -21,9 +22,9 @@ class Client:
         self._tasks: list[GatewayTask] = []
         self.timer_registered: bool = False
 
-    def request_model(self, prompt: str) -> None:
+    def add_text_task(self, prompt: str) -> None:
         threegen = bpy.context.window_manager.threegen
-        task = self._gateway_api.add_task(prompt)
+        task = self._gateway_api.add_text_task(prompt)
         task.start_time = datetime.now()
         task.prompt = prompt
         task.obj_type = threegen.obj_type
@@ -33,6 +34,22 @@ class Client:
             bpy.app.timers.register(client_timer_callback)
             self.timer_registered = True
         print(f"Task added: {task.id}")
+
+    def add_image_task(self, image) -> None:
+        threegen = bpy.context.window_manager.threegen
+        img_path = image.filepath_from_user()
+        task = self._gateway_api.add_image_task(image)
+        task.start_time = datetime.now()
+        task.prompt, _ = os.path.splitext(os.path.basename(img_path))
+        task.image = img_path
+        task.obj_type = threegen.obj_type
+        self._tasks.append(task)
+
+        if not self.timer_registered:
+            bpy.app.timers.register(client_timer_callback)
+            self.timer_registered = True
+        print(f"Task added: {task.id}")
+
     
     def update_tasks(self):
         for task in self._tasks:

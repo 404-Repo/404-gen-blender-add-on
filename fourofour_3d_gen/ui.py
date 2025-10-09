@@ -50,6 +50,13 @@ class THREEGEN_PT_MainPanel(Panel):
 
         row = layout.row()
         row.prop(threegen, "prompt", text="Text")
+        if threegen.image:
+            row.enabled = False
+            if threegen.image_preview:
+                row = layout.row()
+                col = row.column(align=True)
+                col.alignment = 'CENTER'
+                col.template_preview(threegen.image_preview, show_buttons=False)
         row = layout.row(align=True)
         row.prop(threegen, "image", text="Image")
         row.operator(OpenImageOperator.bl_idname, text="", icon='IMAGE_DATA')
