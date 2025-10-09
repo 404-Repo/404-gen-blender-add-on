@@ -1,4 +1,5 @@
 import bpy
+from bpy_extras.io_utils import ImportHelper
 from bpy.types import Context, Operator
 from bpy.props import StringProperty
 
@@ -15,10 +16,16 @@ class GenerateOperator(Operator):
     def execute(self, context:Context):
         threegen = context.window_manager.threegen
         client = get_client()
-        client.request_model(threegen.prompt)
-
-        return {"FINISHED"}
-
+ 
+        if threegen.image:
+            client.add_image_task(threegen.image)
+            return {"FINISHED"}
+        
+        if threegen.prompt:
+            client.add_text_task(threegen.prompt)
+            return {"FINISHED"}
+        
+        return {"CANCELLED"}
 class RemoveTaskOperator(Operator):
     """Remove a task from the list"""
 
@@ -31,7 +38,44 @@ class RemoveTaskOperator(Operator):
         client = get_client()
         client.remove_task(self.task_id)
         print(f"deleting {self.task_id}")
-        return {"FINISHED"} 
+        return {"FINISHED"}
+    
+class OpenImageOperator(Operator, ImportHelper):
+    """Open an Image File"""
+    bl_idname = "image.open_file"
+    bl_label = "Open Image File"
+
+    # File filter for images
+    filter_glob: StringProperty(
+        default="*.png;*.jpg;*.jpeg;*.bmp;*.tiff;*.tga;*.exr",
+        options={'HIDDEN'},
+    )
+
+    def execute(self, context):
+        max_size = 1024
+        threegen = context.window_manager.threegen
+        image_path = self.filepath
+        try:
+            # Load the image into bpy.data.images
+            img = bpy.data.images.load(image_path, check_existing=True)
+            threegen.image = img
+
+            width, height = img.size
+            if width >= height:
+                new_width = max_size
+                new_height = int(height * (max_size / width))
+            else:
+                new_height = max_size
+                new_width = int(width * (max_size / height))
+
+            if (new_width, new_height) != (width, height):
+                img.scale(new_width, new_height)
+
+
+            self.report({'INFO'}, f"Loaded image: {img.name}")
+        except RuntimeError:
+            self.report({'ERROR'}, "Could not load image. Check the file path.")
+        return {'FINISHED'}
   
 class MeshConversionOperator(Operator):
     """Create Mesh from 3DGS model"""
@@ -65,6 +109,7 @@ classes = (
     GenerateOperator,
     MeshConversionOperator,
     RemoveTaskOperator,
+    OpenImageOperator,
 )
 
 register, unregister = bpy.utils.register_classes_factory(classes)

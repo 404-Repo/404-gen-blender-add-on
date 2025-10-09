@@ -1,7 +1,10 @@
+import os
+import io
 import requests
+import tempfile
 from typing import Any, cast
 from urllib.parse import urlencode
-
+import mimetypes
 from .gateway_routes import GatewayRoutes
 from .gateway_task import GatewayTask, GatewayTaskStatusResponse
 
@@ -36,8 +39,8 @@ class GatewayApi:
 
     
 
-    def add_task(self, text_prompt: str) -> GatewayTask:
-        """Adds a task to the gateway."""
+    def add_text_task(self, text_prompt: str) -> GatewayTask:
+        """Adds a text task to the gateway."""
         try:
             url = self._construct_url(host=self._gateway_url, route=GatewayRoutes.ADD_TASK)
             print(text_prompt)
@@ -48,6 +51,29 @@ class GatewayApi:
             return GatewayTask.model_validate_json(response.text)
         except Exception as e:
             raise GatewayAddTaskError(f"Gateway: error to add task: {e}") from e
+        
+    def add_image_task(self, image) -> GatewayTask:
+        """Adds a image task to the gateway."""
+
+        url = self._construct_url(host=self._gateway_url, route=GatewayRoutes.ADD_TASK)
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+            temp_path = tmp.name
+
+        try:
+            image.save_render(temp_path)
+            with open(temp_path, "rb") as f:
+                files = {"image": (os.path.basename(temp_path), f, "image/png")}
+                headers = {"x-api-key": self._gateway_api_key}
+                response = self._http_client.post(url=url, files=files, headers=headers)
+                response.raise_for_status()
+                return GatewayTask.model_validate_json(response.text)
+            
+        except Exception as e:
+            raise GatewayAddTaskError(f"Gateway: error to add task: {e}") from e
+        
+        finally:
+                os.remove(temp_path)
+
 
     def get_status(self, task: GatewayTask) -> GatewayTaskStatusResponse:
         """Gets the status of a task."""
