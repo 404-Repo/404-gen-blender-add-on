@@ -13,10 +13,6 @@ class THREEGEN_PT_MainPanel(Panel):
     bl_idname = "THREEGEN_PT_MainPanel"
     bl_label = "Generation"
 
-    @classmethod
-    def poll(cls, context):
-        notified = bpy.context.preferences.addons[__package__].preferences.data_collection_notice
-        return notified
 
     def draw_task_list(self, context:Context, layout:UILayout):
         client = get_client()
@@ -78,9 +74,8 @@ class THREEGEN_PT_DisplaySettingsPanel(Panel):
     @classmethod
     def poll(cls, context):
         obj = context.object
-        notified = bpy.context.preferences.addons[__package__].preferences.data_collection_notice
 
-        return obj is not None and "Gaussian Splatting" in obj.modifiers and notified
+        return obj is not None and "Gaussian Splatting" in obj.modifiers
 
     def draw(self, context: Context):
         layout = self.layout
@@ -105,10 +100,16 @@ class THREEGEN_PT_ConversionPanel(Panel):
 
     @classmethod
     def poll(cls, context):
+        threegen = context.window_manager.threegen
         obj = context.object
-        notified = bpy.context.preferences.addons[__package__].preferences.data_collection_notice
 
-        return obj is not None and "Gaussian Splatting" in obj.modifiers and notified
+        if threegen.obj_type == 'MESH':
+            return True
+        
+        if obj is not None and "Gaussian Splatting" in obj.modifiers:
+            return True
+
+        return False
 
     def draw(self, context: Context):
         threegen = context.window_manager.threegen
