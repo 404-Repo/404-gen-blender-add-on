@@ -32,6 +32,8 @@ class GatewayNoAttachmentError(GatewayErrorBase):
 class GatewayApi:
     """API client for interacting with gateway."""
 
+    GATEWAY_TASK_TIMEOUT_SEC: int = 10 * 60
+
     def __init__(self, *, gateway_url: str, gateway_api_key: str) -> None:
         self._http_client = requests.Session()
         self._gateway_url = gateway_url
@@ -75,10 +77,10 @@ class GatewayApi:
                 os.remove(temp_path)
 
 
-    def get_status(self, task: GatewayTask) -> GatewayTaskStatusResponse:
+    def get_status(self, task_id:str) -> GatewayTaskStatusResponse:
         """Gets the status of a task."""
         try:
-            url = self._construct_url(host=self._gateway_url, route=GatewayRoutes.GET_STATUS, id=task.id)
+            url = self._construct_url(host=self._gateway_url, route=GatewayRoutes.GET_STATUS, id=task_id)
             headers = {"x-api-key": self._gateway_api_key}
             response = self._http_client.get(url=url, headers=headers)
             response.raise_for_status()
@@ -87,10 +89,11 @@ class GatewayApi:
         except Exception as e:
             raise GatewayGetStatusError(f"Gateway: error to get status: {e}") from e
 
-    def get_result(self, task: GatewayTask) -> bytes:
+
+    def get_result(self, task_id: str) -> bytes:
         """Gets generated 3D asset in spz format."""
         try:
-            url = self._construct_url(host=self._gateway_url, route=GatewayRoutes.GET_RESULT, id=task.id)
+            url = self._construct_url(host=self._gateway_url, route=GatewayRoutes.GET_RESULT, id=task_id)
             headers = {"x-api-key": self._gateway_api_key}
             response = self._http_client.get(url=url, headers=headers)
             response.raise_for_status()
@@ -99,7 +102,17 @@ class GatewayApi:
             raise GatewayNoAttachmentError()
         except Exception as e:
             raise GatewayGetResultError(f"Gateway: error to get result: {e}") from e
+        
+    def get_timeout(self):
+        return self.GATEWAY_TASK_TIMEOUT_SEC
 
     def _construct_url(self, *, host: str, route: GatewayRoutes, **kwargs: Any) -> str:
         return f"{host}{route.value}?{urlencode(kwargs)}"
 
+_gateway_instance = None
+
+def gateway():
+    global _gateway_instance
+    if _gateway_instance is None:
+        _gateway_instance = GatewayApi()
+    return _gateway_instance

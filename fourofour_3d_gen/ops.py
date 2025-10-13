@@ -15,17 +15,15 @@ class GenerateOperator(Operator):
 
     def execute(self, context:Context):
         threegen = context.window_manager.threegen
-        client = get_client()
  
-        if threegen.image:
-            client.add_image_task(threegen.image)
-            return {"FINISHED"}
+        if not threegen.image and not threegen.prompt:
+            return {"CANCELLED"}
+
+        threegen.job_manager.add_job()
+        return {"FINISHED"}
         
-        if threegen.prompt:
-            client.add_text_task(threegen.prompt)
-            return {"FINISHED"}
-        
-        return {"CANCELLED"}
+
+    
 class RemoveTaskOperator(Operator):
     """Remove a task from the list"""
 

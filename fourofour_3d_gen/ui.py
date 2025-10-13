@@ -15,9 +15,8 @@ class THREEGEN_PT_MainPanel(Panel):
 
 
     def draw_task_list(self, context:Context, layout:UILayout):
-        client = get_client()
-
-        if not client.has_tasks():
+        job_manager = context.window_manager.threegen.job_manager
+        if not job_manager.has_jobs():
             return
         
         col = layout.column()
@@ -25,20 +24,13 @@ class THREEGEN_PT_MainPanel(Panel):
         row.label(text="Tasks")
         row = col.row()
         col = row.column()
-        for task in client._tasks:
+        for job in job_manager.jobs:
             row = col.row()
-            task_status_icon = "SORTTIME"
-            if task.status == GatewayTaskStatus.FAILURE:
-                task_status_icon = "ERROR"
-            if task.status == GatewayTaskStatus.SUCCESS:
-                task_status_icon = "CHECKMARK"           
-            row.label(text=task.prompt, icon=task_status_icon)
-            task_obj_type_icon = 'OUTLINER_DATA_POINTCLOUD'
-            if task.obj_type == 'MESH':
-                task_obj_type_icon = 'MESH_DATA'
-            row.label(text="", icon=task_obj_type_icon)
+            row.prop(job, "status", text="")
+            row.label(text=job.name)
+            row.prop(job, "obj_type", text="")
             op = row.operator(RemoveTaskOperator.bl_idname, text="", icon="TRASH")
-            op.task_id = task.id
+            op.job_id = job.id
 
     def draw(self, context: Context):
         layout = self.layout
