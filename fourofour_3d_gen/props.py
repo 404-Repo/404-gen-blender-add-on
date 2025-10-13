@@ -37,6 +37,7 @@ class WindowManagerProps(bpy.types.PropertyGroup):
         ],
         default="3DGS"
     )
+    replace_active_obj: bpy.props.BoolProperty(default=False)
 
 
 classes = (WindowManagerProps,)

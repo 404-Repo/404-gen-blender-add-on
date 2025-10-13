@@ -56,8 +56,8 @@ def import_gs(filepath: str, name: str):
 
     obj = bpy.data.objects.new(name, mesh)
     bpy.context.collection.objects.link(obj)
-    bpy.context.view_layer.objects.active = obj
-    obj.select_set(True)
+    # bpy.context.view_layer.objects.active = obj
+    # obj.select_set(True)
 
     obj.rotation_mode = "XYZ"
     obj.rotation_euler = (-math.pi / 2, 0, 0)

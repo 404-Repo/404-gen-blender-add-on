@@ -87,6 +87,8 @@ class Client:
                     bake_texture(gs_obj, mesh_obj, texture_size)
                     bpy.data.objects.remove(gs_obj, do_unlink=True)
 
+                
+
                 self._tasks.remove(task)
                 print(f"Received result for task: {task.id}")
 

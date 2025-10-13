@@ -2,7 +2,7 @@ from enum import Enum
 from datetime import datetime
 
 from pydantic import BaseModel
-
+import bpy
 class GatewayTaskStatus(Enum):
     """Status of the task in gateway"""
 
@@ -30,4 +30,5 @@ class GatewayTask(BaseModel):
     image: str | None = None
     start_time: datetime | None = None
     obj_type: str | None = None
+    replace_obj: bpy.types.Object | None = None
 

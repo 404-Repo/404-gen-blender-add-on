@@ -63,6 +63,8 @@ class THREEGEN_PT_MainPanel(Panel):
         row = layout.row()
         row.prop(threegen, "obj_type", expand=True)
         row = layout.row()
+        row.prop(threegen, "replace_active_obj", text="Replace active object")
+        row = layout.row()
         row.operator(GenerateOperator.bl_idname)
         row = layout.row()
         self.draw_task_list(context, row)
