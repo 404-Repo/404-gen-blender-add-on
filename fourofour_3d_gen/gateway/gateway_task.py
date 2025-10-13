@@ -26,9 +26,5 @@ class GatewayTask(BaseModel):
     result: bytes | None = None
     status: GatewayTaskStatus = GatewayTaskStatus.NO_RESULT
     reason: str | None = None
-    prompt: str | None = None
-    image: str | None = None
-    start_time: datetime | None = None
-    obj_type: str | None = None
-    replace_obj: bpy.types.Object | None = None
+
 
