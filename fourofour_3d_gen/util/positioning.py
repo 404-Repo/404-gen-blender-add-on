@@ -1,62 +1,47 @@
 import bpy
 import math
-from mathutils import Vector, Quaternion
+from mathutils import Matrix, Vector
 
-def best_fit_scale_and_rotation(obj_dims, box_dims):
-    ox, oy, oz = obj_dims
-    bx, by, bz = box_dims
+def align_and_fit(a, b):
+    """
+    Aligns object B to object A:
+      1. Matches A's rotation and location.
+      2. Rotates B 90° around local Z if X/Y proportions differ.
+      3. Uniformly scales B so its largest dimension matches A's.
+      4. Moves B so bottoms align in world space.
+    """
 
-    # Case A: no rotation
-    sA = min(bx / ox if ox else 0, by / oy if oy else 0, bz / oz if oz else 0)
+    # Step 1: Match world transform directly
+    b.matrix_world = a.matrix_world.copy()
 
-    # Case B: rotate 90° about **Z** (swap X and Y)
-    sB = min(bx / oy if oy else 0, by / ox if ox else 0, bz / oz if oz else 0)
+    # Step 2: Handle potential 90° rotation difference
+    a_dims = a.dimensions
+    b_dims = b.dimensions
 
-    if sB > sA:
-        rotation_z = math.pi / 2
-        scale = sB
-        orientation = "rotated 90° about Z"
-    else:
-        rotation_z = 0.0
-        scale = sA
-        orientation = "no rotation"
+    a_xy_ratio = a_dims.x / a_dims.y if a_dims.y != 0 else 0
+    b_xy_ratio = b_dims.x / b_dims.y if b_dims.y != 0 else 0
 
-    return scale, rotation_z, orientation
+    # Apply the rotation in world space (not local)
+    if (a_xy_ratio > 1 and b_xy_ratio < 1) or (a_xy_ratio < 1 and b_xy_ratio > 1):
+        rot_90_z = Matrix.Rotation(math.radians(90), 4, 'Z')
+        b.matrix_world = b.matrix_world @ rot_90_z
 
+    # Step 3: Scale B uniformly based on largest dimension
+    a_max = max(a_dims)
+    b_max = max(b_dims)
+    if b_max != 0:
+        scale_factor = a_max / b_max
+        # Apply uniform scale in world space
+        scale_mtx = Matrix.Scale(scale_factor, 4)
+        b.matrix_world = b.matrix_world @ scale_mtx
 
-def get_local_bottom(obj):
-    """Return the local-space bottom-most corner."""
-    bb = [Vector(corner) for corner in obj.bound_box]
-    return min(bb, key=lambda v: v.z)
+    # Step 4: Align bottoms in world space
+    def bottom_z(obj):
+        bb = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
+        return min(v.z for v in bb)
 
+    offset = bottom_z(a) - bottom_z(b)
+    b.matrix_world.translation.z += offset
 
-def align_and_fit(obj_a, obj_b):
-    # --- Step 1: Compute best-fit rotation/scale ---
-    dims_a = tuple(obj_a.dimensions)
-    dims_b = tuple(obj_b.dimensions)
-    scale_factor, rotation_z, orientation = best_fit_scale_and_rotation(dims_b, dims_a)
-
-    # --- Step 2: Copy rotation and apply yaw around **local Z** ---
-    obj_a.rotation_mode = 'QUATERNION'
-    obj_b.rotation_mode = 'QUATERNION'
-
-    base_quat = obj_a.rotation_quaternion.copy()
-    yaw_quat = Quaternion((0, 0, 1), rotation_z)
-    target_quat = base_quat @ yaw_quat  # Apply rotation around Z instead of X
-    obj_b.rotation_quaternion = target_quat
+    # Force depsgraph update so bounding boxes refresh
     bpy.context.view_layer.update()
-
-    # --- Step 3: Apply uniform scale ---
-    obj_b.scale = [s * scale_factor for s in obj_b.scale]
-    bpy.context.view_layer.update()
-
-    # --- Step 4: Align bottoms (in world space) ---
-    world_bottom_a = obj_a.matrix_world @ get_local_bottom(obj_a)
-    world_bottom_b = obj_b.matrix_world @ get_local_bottom(obj_b)
-    offset = world_bottom_a - world_bottom_b
-
-    obj_b.location += offset
-    bpy.context.view_layer.update()
-
-    print(f"✓ Fitted {obj_b.name} into {obj_a.name}: {orientation}, uniform scale {scale_factor:.4f}")
-
