@@ -2,7 +2,7 @@ import blf
 import bpy
 
 
-def wrap_text(text: str, width: int) -> list[str]:
+def wrap(text: str, width: int) -> list[str]:
     """
     Wrap the given text to the given width.
 

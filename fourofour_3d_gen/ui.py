@@ -1,8 +1,6 @@
 import bpy
 from bpy.types import Context, Panel, UILayout
 
-from .client import get_client
-from .gateway.gateway_task import GatewayTaskStatus
 from .ops import GenerateOperator, MeshConversionOperator, RemoveTaskOperator, OpenImageOperator
 from.preferences import ConsentOperator
 
@@ -21,13 +19,15 @@ class THREEGEN_PT_MainPanel(Panel):
         
         col = layout.column()
         row = col.row()
-        row.label(text="Tasks")
+        row.label(text="Jobs")
         row = col.row()
         col = row.column()
         for job in job_manager.jobs:
             row = col.row()
             row.prop(job, "status", text="")
             row.label(text=job.name)
+            row = col.row()
+            row.label(text=job.reason)
             row.prop(job, "obj_type", text="")
             op = row.operator(RemoveTaskOperator.bl_idname, text="", icon="TRASH")
             op.job_id = job.id
@@ -94,12 +94,16 @@ class THREEGEN_PT_ConversionPanel(Panel):
 
     @classmethod
     def poll(cls, context):
-        threegen = context.window_manager.threegen
+        wm = context.window_manager
+        threegen = getattr(wm, "threegen", None)
+        if threegen is None:
+            return False  # property not yet available
+
         obj = context.object
 
         if threegen.obj_type == 'MESH':
             return True
-        
+
         if obj is not None and "Gaussian Splatting" in obj.modifiers:
             return True
 
@@ -146,7 +150,7 @@ class THREEGEN_PT_ConsentPanel(bpy.types.Panel):
         text_col.scale_y = 0.8
         width = context.region.width
         ui_scale = context.preferences.system.ui_scale
-        for text in utils.wrap_text(const.TRACKING_MSG, (4 / (5 * ui_scale)) * width):
+        for text in text.wrap(const.TRACKING_MSG, (4 / (5 * ui_scale)) * width):
             text_col.label(text=text)
         row = layout.row()
         row.scale_y = 1.5

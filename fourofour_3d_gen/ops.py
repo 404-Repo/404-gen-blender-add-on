@@ -3,9 +3,8 @@ from bpy_extras.io_utils import ImportHelper
 from bpy.types import Context, Operator
 from bpy.props import StringProperty
 
-from .client import get_client
 from .data_collection import track
-from .mesh_conversion import generate_mesh, generate_uvs, bake_texture
+from .util.mesh_conversion import generate_mesh, generate_uvs, bake_texture
 
 class GenerateOperator(Operator):
     """Generate 3DGS model"""
@@ -30,12 +29,12 @@ class RemoveTaskOperator(Operator):
     bl_idname = "threegen.remove_task"
     bl_label = "Remove"
 
-    task_id: StringProperty()
+    job_id: StringProperty()
 
     def execute(self, context:Context):
-        client = get_client()
-        client.remove_task(self.task_id)
-        print(f"deleting {self.task_id}")
+        job_manager = context.window_manager.threegen.job_manager
+        job_manager.remove_job(self.job_id)
+        print(f"deleting {self.job_id}")
         return {"FINISHED"}
     
 class OpenImageOperator(Operator, ImportHelper):

@@ -1,10 +1,9 @@
+import bpy
 import os
-import io
 import requests
 import tempfile
 from typing import Any, cast
 from urllib.parse import urlencode
-import mimetypes
 from .gateway_routes import GatewayRoutes
 from .gateway_task import GatewayTask, GatewayTaskStatusResponse
 
@@ -34,7 +33,7 @@ class GatewayApi:
 
     GATEWAY_TASK_TIMEOUT_SEC: int = 10 * 60
 
-    def __init__(self, *, gateway_url: str, gateway_api_key: str) -> None:
+    def __init__(self, gateway_url: str, gateway_api_key: str) -> None:
         self._http_client = requests.Session()
         self._gateway_url = gateway_url
         self._gateway_api_key = gateway_api_key
@@ -111,8 +110,15 @@ class GatewayApi:
 
 _gateway_instance = None
 
-def gateway():
+def get_addon_prefs() -> bpy.types.AddonPreferences:
+    addon_name = "fourofour_3d_gen"  # top-level add-on folder name
+    addon_entry = bpy.context.preferences.addons.get(addon_name)
+    if addon_entry is None:
+        raise RuntimeError(f"Add-on '{addon_name}' is not loaded")
+    return addon_entry.preferences
+
+def get_gateway():
     global _gateway_instance
     if _gateway_instance is None:
-        _gateway_instance = GatewayApi()
+        _gateway_instance = GatewayApi("https://gateway-us-west.404.xyz:4443", "bf6714a5-10f4-42a7-9487-9620317e58cb")
     return _gateway_instance

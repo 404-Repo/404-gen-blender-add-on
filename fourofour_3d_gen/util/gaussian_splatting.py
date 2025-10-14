@@ -1,5 +1,5 @@
 import bpy
-from mathutils import Quaternion
+from mathutils import Quaternion, Euler
 import math
 import time
 import os
@@ -62,6 +62,9 @@ def import_gs(filepath: str, name: str):
     obj.rotation_mode = "XYZ"
     obj.rotation_euler = (-math.pi / 2, 0, 0)
     obj.rotation_euler[0] = 1.5708
+    bpy.context.view_layer.update()
+    obj.data.transform(obj.matrix_world)
+    obj.matrix_world.identity()
 
     print("Mesh attributes added in", time.time() - start_time, "seconds")
 

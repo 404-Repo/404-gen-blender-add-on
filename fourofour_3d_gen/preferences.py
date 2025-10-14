@@ -4,7 +4,7 @@ import bpy
 import uuid
 
 from . import constants as const
-from . import utils
+from .util.text import wrap
 
 
 class ConsentOperator(bpy.types.Operator):
@@ -43,7 +43,7 @@ class ThreegenPreferences(AddonPreferences):
         if not self.data_collection_notice:
             width = context.region.width
             ui_scale = context.preferences.system.ui_scale
-            for text in utils.wrap_text(const.TRACKING_MSG, 2500):
+            for text in wrap(const.TRACKING_MSG, 2500):
                 col.label(text=text)
             col.operator(ConsentOperator.bl_idname)
         else:

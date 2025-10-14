@@ -4,10 +4,11 @@ import os
 import re
 import time
 
-from .gateway.gateway_api import gateway
+from .gateway.gateway_api import get_gateway
 from .gateway.gateway_task import GatewayTaskStatus
-from .utils.gaussian_splatting import import_gs
-from .utils.mesh_conversion import generate_mesh, generate_uvs, bake_texture
+from .util.gaussian_splatting import import_gs
+from .util.mesh_conversion import generate_mesh, generate_uvs, bake_texture
+from .util.positioning import align_and_fit
 from .spz_loader import get_spz
 
 def on_image_change(self, context):
@@ -18,21 +19,24 @@ def on_image_change(self, context):
     self.image_preview.image = self.image
     print("Updated Image Preview")
 
+_job_manager_timer_registred: bool = False
+
 def job_manager_timer_callback():
+    global _job_manager_timer_registred
     job_manager = bpy.context.window_manager.threegen.job_manager
     if job_manager.has_jobs():
         try:
             job_manager.update()
         except Exception as e:
             print(e)
-        return 1.0
+        return 2.0
 
-    job_manager.timer_registered = False
+    _job_manager_timer_registred = False
     return None
 
 OBJECT_ENUM_ITEMS = [
-    ('3DGS', "3DGS", "3DGS", 'OUTLINER_DATA_POINTCLOUD'),
-    ('MESH', "Mesh", "Mesh", 'MESH_DATA'),   
+    ('3DGS', "3DGS", "3DGS"),
+    ('MESH', "Mesh", "Mesh"),   
 ]
 
 class Job(bpy.types.PropertyGroup):
@@ -42,14 +46,21 @@ class Job(bpy.types.PropertyGroup):
         name="Job Status",
         description="Defines which type of object to generate",
         items=[
-            ('RUNNING', "Running", "Running", 'SORTTIME'),
-            ('FAILED', "Failed", "Failed", 'ERROR'),
-            ('COMPLETED', "Completed", "Completed", 'CHECKMARK')
-        ]
+            ('WAITING', "Waiting", "Waiting", 'PLAY', 0),
+            ('RUNNING', "Running", "Running", 'SORTTIME', 1),
+            ('FAILED', "Failed", "Failed", 'ERROR', 2),
+            ('COMPLETED', "Completed", "Completed", 'CHECKMARK', 3)
+        ],
+        default='WAITING'
     )
+    reason: bpy.props.StringProperty()
     name: bpy.props.StringProperty()
     prompt: bpy.props.StringProperty()
-    image: bpy.props.StringProperty()
+    image: bpy.props.PointerProperty(
+        type=bpy.types.Image,
+        name="Image",
+        description="A custom image property",
+    )
     angle_limit: bpy.props.FloatProperty(default=1.0, precision=3)
     island_margin: bpy.props.FloatProperty(default=0.0, precision=3)
     texture_size: bpy.props.IntProperty(default=4096)
@@ -68,9 +79,9 @@ class Job(bpy.types.PropertyGroup):
 
 class JobManager(bpy.types.PropertyGroup):
     jobs: bpy.props.CollectionProperty(type=Job)
-    timer_registered: bpy.props.BoolProperty(default=False)
 
     def add_job(self):
+        global _job_manager_timer_registred
         threegen = bpy.context.window_manager.threegen
         job = self.jobs.add()
         job.crtime = time.time()
@@ -84,23 +95,27 @@ class JobManager(bpy.types.PropertyGroup):
         job.adaptivity = threegen.adaptivity
         job.obj_type = threegen.obj_type
 
-        if threegen.replace_active_object:
-            job.replace_obj = bpy.context.object
-        
-        if job.image:
-            img_path = job.image.filepath_from_user()
-            job.name = os.path.splitext(os.path.basename(img_path))
-            task = gateway().add_image_task(job.image)
-        else:
-            job.name = re.sub(r"\s+", "_", job.prompt)
-            task = gateway().add_text_task(job.prompt)
+        try:
+            if threegen.replace_active_obj:
+                job.replace_obj = bpy.context.object
+            
+            if job.image:
+                img_path = job.image.filepath_from_user()
+                job.name,_ = os.path.splitext(os.path.basename(img_path))
+                task = get_gateway().add_image_task(job.image)
+            else:
+                job.name = re.sub(r"\s+", "_", job.prompt)
+                task = get_gateway().add_text_task(job.prompt)
 
-        job.id = task.id
+            job.id = task.id
 
-        if not self.timer_registered:
-            bpy.app.timers.register(job_manager_timer_callback)
-            self.timer_registered = True
-        print(f"Job added: {job.id}")
+            if not _job_manager_timer_registred:
+                bpy.app.timers.register(job_manager_timer_callback)
+                _job_manager_timer_registred = True
+            print(f"Job added: {job.id}")
+        except Exception as e:
+            job.status = 'FAILED'
+            job.reason = str(e)            
 
 
     def remove_job(self, id):
@@ -111,35 +126,38 @@ class JobManager(bpy.types.PropertyGroup):
 
     def update_job(self, job):
         try:
-            if job.status == 'FAILURE':
+            if job.status == 'FAILED':
                 return
 
-            if time.time() - job.crtime > gateway().get_timeout():
-                job.status = 'FAILURE'
+            if time.time() - job.crtime > get_gateway().get_timeout():
+                job.status = 'FAILED'
                 job.reason = "connection timed out"
                 return
 
-            status, reason = gateway().get_status(job.id)
+            response = get_gateway().get_status(job.id)
 
-            if status == GatewayTaskStatus.SUCCESS:
-                spz_data = gateway().get_result(job.id)
+            if response.status == GatewayTaskStatus.SUCCESS:
+                spz_data = get_gateway().get_result(job.id)
                 ply_data = BytesIO(get_spz().decompress(spz_data, include_normals=False))
-                gs_obj = import_gs(ply_data, job.name)
+                obj = import_gs(ply_data, job.name)
 
                 if job.obj_type == 'MESH':
-                    mesh_obj = generate_mesh(gs_obj, job.voxel_size, job.adaptivity)
+                    mesh_obj = generate_mesh(obj, job.voxel_size, job.adaptivity)
                     generate_uvs(mesh_obj, job.angle_limit, job.island_margin)
-                    bake_texture(gs_obj, mesh_obj, job.texture_size)
-                    bpy.data.objects.remove(gs_obj, do_unlink=True)
+                    bake_texture(obj, mesh_obj, job.texture_size)
+                    bpy.data.objects.remove(obj, do_unlink=True)
+                    obj = mesh_obj
 
                 if job.replace_obj:
-                    # fit and transform
-                    ...
+                    align_and_fit(job.replace_obj, obj)
+                    bpy.data.objects.remove(job.replace_obj, do_unlink=True)
+                    job.replace_obj = None
 
-                job.status = 'SUCCESS'
+
+                job.status = 'COMPLETED'
                 self.remove_job(job.id)
         except Exception as e:
-            job.status = 'FAILURE'
+            job.status = 'FAILED'
             job.reason = str(e)
 
     def update(self):
@@ -175,8 +193,11 @@ class WindowManagerProps(bpy.types.PropertyGroup):
         default='3DGS'
     )
     replace_active_obj: bpy.props.BoolProperty(default=False)
-    jobs: bpy.props.CollectionProperty(type=JobProps)
-
+    job_manager: bpy.props.PointerProperty(
+        type=JobManager,
+        name="Job Manager",
+        description="A job manager",
+    )
 
 classes = (Job, JobManager, WindowManagerProps,)
 
