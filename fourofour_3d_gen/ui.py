@@ -11,8 +11,18 @@ class THREEGEN_PT_MainPanel(Panel):
     bl_idname = "THREEGEN_PT_MainPanel"
     bl_label = "Generation"
 
+    def draw_job(self, context:Context, layout:UILayout, job):
+        col = layout.column()
+        row = col.row()
+        row.prop(job, "status", text="")
+        row.label(text=job.name)
+        row.prop(job, "obj_type", text="")
+        op = row.operator(RemoveTaskOperator.bl_idname, text="", icon="TRASH")
+        op.job_id = job.id
+        row = col.row()
+        row.label(text=job.reason)
 
-    def draw_task_list(self, context:Context, layout:UILayout):
+    def draw_job_list(self, context:Context, layout:UILayout):
         job_manager = context.window_manager.threegen.job_manager
         if not job_manager.has_jobs():
             return
@@ -23,14 +33,7 @@ class THREEGEN_PT_MainPanel(Panel):
         row = col.row()
         col = row.column()
         for job in job_manager.jobs:
-            row = col.row()
-            row.prop(job, "status", text="")
-            row.label(text=job.name)
-            row = col.row()
-            row.label(text=job.reason)
-            row.prop(job, "obj_type", text="")
-            op = row.operator(RemoveTaskOperator.bl_idname, text="", icon="TRASH")
-            op.job_id = job.id
+            self.draw_job(context, row, job)
 
     def draw(self, context: Context):
         layout = self.layout
@@ -53,9 +56,13 @@ class THREEGEN_PT_MainPanel(Panel):
         row = layout.row()
         row.prop(threegen, "replace_active_obj", text="Replace active object")
         row = layout.row()
+        row.prop(threegen, "include_placeholder_dims", text="Include placeholder size")
+        if not threegen.replace_active_obj:
+            row.enabled = False  
+        row = layout.row()
         row.operator(GenerateOperator.bl_idname)
         row = layout.row()
-        self.draw_task_list(context, row)
+        self.draw_job_list(context, row)
 
 
 class THREEGEN_PT_DisplaySettingsPanel(Panel):

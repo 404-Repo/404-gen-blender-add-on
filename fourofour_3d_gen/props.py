@@ -76,6 +76,7 @@ class Job(bpy.types.PropertyGroup):
         name="The object to be replaced",
         description="A custom image property",
     )
+    open: bpy.props.BoolProperty(default=False)
 
 class JobManager(bpy.types.PropertyGroup):
     jobs: bpy.props.CollectionProperty(type=Job)
@@ -98,20 +99,26 @@ class JobManager(bpy.types.PropertyGroup):
         try:
             if threegen.replace_active_obj:
                 job.replace_obj = bpy.context.object
-            
+                if threegen.include_placeholder_dims:
+                    dims = job.replace_obj.dimensions
+                    job.prompt = f"{job.prompt}, {int(dims.x*100)}cm wide, {int(dims.y*100)}cm deep and {int(dims.z*100)}cm high"
+                
             if job.image:
                 img_path = job.image.filepath_from_user()
                 job.name,_ = os.path.splitext(os.path.basename(img_path))
                 task = get_gateway().add_image_task(job.image)
             else:
-                job.name = re.sub(r"\s+", "_", job.prompt)
+                job.name = re.sub(r"\s+", "_", threegen.prompt)
                 task = get_gateway().add_text_task(job.prompt)
+
+
 
             job.id = task.id
 
             if not _job_manager_timer_registred:
                 bpy.app.timers.register(job_manager_timer_callback)
                 _job_manager_timer_registred = True
+
             print(f"Job added: {job.id}")
         except Exception as e:
             job.status = 'FAILED'
@@ -193,6 +200,7 @@ class WindowManagerProps(bpy.types.PropertyGroup):
         default='3DGS'
     )
     replace_active_obj: bpy.props.BoolProperty(default=False)
+    include_placeholder_dims: bpy.props.BoolProperty(default=False)
     job_manager: bpy.props.PointerProperty(
         type=JobManager,
         name="Job Manager",
