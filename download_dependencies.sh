@@ -15,7 +15,6 @@ IMPLEMENTATION="cp"
 ABI="cp311"
 
 PACKAGES=(
-  "mixpanel==4.10.1"
   "pydantic==2.11.7"
 )
 
