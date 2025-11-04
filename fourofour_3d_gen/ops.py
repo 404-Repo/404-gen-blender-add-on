@@ -1,10 +1,11 @@
 import bpy
+import os,re
 from bpy_extras.io_utils import ImportHelper
 from bpy.types import Context, Operator
-from bpy.props import StringProperty
+from bpy.props import StringProperty, BoolProperty, EnumProperty
 
-from .data_collection import track
 from .util.mesh_conversion import generate_mesh, generate_uvs, bake_texture
+from .util.gaussian_splatting import import_gs
 
 class GenerateOperator(Operator):
     """Generate 3DGS model"""
@@ -23,10 +24,10 @@ class GenerateOperator(Operator):
         
 
     
-class RemoveTaskOperator(Operator):
-    """Remove a task from the list"""
+class RemoveJobOperator(Operator):
+    """Remove a job from the list"""
 
-    bl_idname = "threegen.remove_task"
+    bl_idname = "threegen.remove_job"
     bl_label = "Remove"
 
     job_id: StringProperty()
@@ -35,6 +36,20 @@ class RemoveTaskOperator(Operator):
         job_manager = context.window_manager.threegen.job_manager
         job_manager.remove_job(self.job_id)
         print(f"deleting {self.job_id}")
+        return {"FINISHED"}
+    
+class RestartJobOperator(Operator):
+    """Restart a failed job from the list"""
+
+    bl_idname = "threegen.restart_job"
+    bl_label = "Restart"
+
+    job_id: StringProperty()
+
+    def execute(self, context:Context):
+        job_manager = context.window_manager.threegen.job_manager
+        job_manager.restart_job(self.job_id)
+        print(f"restarting {self.job_id}")
         return {"FINISHED"}
     
 class OpenImageOperator(Operator, ImportHelper):
@@ -73,6 +88,43 @@ class OpenImageOperator(Operator, ImportHelper):
         except RuntimeError:
             self.report({'ERROR'}, "Could not load image. Check the file path.")
         return {'FINISHED'}
+    
+class ImportOperator(Operator, ImportHelper):
+    """Import 3DGS model from file"""
+
+    bl_idname = "threegen.import"
+    bl_label = "Import"
+    filename_ext = ".ply"
+
+    filter_glob: StringProperty(
+        default="*.ply",
+        options={"HIDDEN"},
+        maxlen=255,  # Max internal buffer length, longer would be clamped.
+    )
+    use_setting: BoolProperty(
+        name="Example Boolean",
+        description="Example Tooltip",
+        default=True,
+    )
+
+    type: EnumProperty(
+        name="Example Enum",
+        description="Choose between two items",
+        items=(
+            ("OPT_A", "First Option", "Description one"),
+            ("OPT_B", "Second Option", "Description two"),
+        ),
+        default="OPT_A",
+    )
+
+    def execute(self, context):
+        base_name = os.path.basename(self.filepath)
+        name, _ = os.path.splitext(base_name)
+        name = re.sub(r"\s+", "_", name)
+        with open(self.filepath, "rb") as f:
+            obj = import_gs(f, name)
+
+        return {"FINISHED"}
   
 class MeshConversionOperator(Operator):
     """Create Mesh from 3DGS model"""
@@ -105,7 +157,9 @@ class MeshConversionOperator(Operator):
 classes = (
     GenerateOperator,
     MeshConversionOperator,
-    RemoveTaskOperator,
+    RemoveJobOperator,
+    RestartJobOperator,
+    ImportOperator,
     OpenImageOperator,
 )
 

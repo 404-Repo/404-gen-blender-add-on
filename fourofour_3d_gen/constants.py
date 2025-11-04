@@ -1,1 +1,0 @@
-TRACKING_MSG = "In order to fix bugs faster and learn more about how we can improve our service, we are collecting anonymous information about how you use the add-on. You can disable data collection in the add-on preferences at any time. Please consider participating since it helps us tremendously to make 404 better!"

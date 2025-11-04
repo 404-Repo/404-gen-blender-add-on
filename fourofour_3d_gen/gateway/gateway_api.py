@@ -46,7 +46,7 @@ class GatewayApi:
             url = self._construct_url(host=self._gateway_url, route=GatewayRoutes.ADD_TASK)
             print(text_prompt)
             payload = {"prompt": text_prompt}
-            headers = {"x-api-key": self._gateway_api_key}
+            headers = {"x-api-key": self._gateway_api_key, "x-client-origin": "blender" }
             response = self._http_client.post(url=url, json=payload, headers=headers)
             response.raise_for_status()
             return GatewayTask.model_validate_json(response.text)
@@ -64,7 +64,7 @@ class GatewayApi:
             image.save_render(temp_path)
             with open(temp_path, "rb") as f:
                 files = {"image": (os.path.basename(temp_path), f, "image/png")}
-                headers = {"x-api-key": self._gateway_api_key}
+                headers = {"x-api-key": self._gateway_api_key, "x-client-origin": "blender" }
                 response = self._http_client.post(url=url, files=files, headers=headers)
                 response.raise_for_status()
                 return GatewayTask.model_validate_json(response.text)

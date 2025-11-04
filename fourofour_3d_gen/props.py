@@ -111,8 +111,6 @@ class JobManager(bpy.types.PropertyGroup):
                 job.name = re.sub(r"\s+", "_", threegen.prompt)
                 task = get_gateway().add_text_task(job.prompt)
 
-
-
             job.id = task.id
 
             if not _job_manager_timer_registred:
@@ -122,8 +120,24 @@ class JobManager(bpy.types.PropertyGroup):
             print(f"Job added: {job.id}")
         except Exception as e:
             job.status = 'FAILED'
-            job.reason = str(e)            
+            job.reason = str(e)
 
+    def restart_job(self, id):
+        global _job_manager_timer_registred
+        for job in self.jobs:
+            if job.id == id:
+                if job.image:
+                    task = get_gateway().add_image_task(job.image)
+                else:
+                    task = get_gateway().add_text_task(job.prompt) 
+                job.id = task.id
+                job.crtime = time.time()
+                job.status = 'RUNNING'
+                job.reason = ""
+
+        if not _job_manager_timer_registred:
+            bpy.app.timers.register(job_manager_timer_callback)
+            _job_manager_timer_registred = True
 
     def remove_job(self, id):
         for i, job in enumerate(self.jobs):
