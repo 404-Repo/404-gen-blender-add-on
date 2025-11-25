@@ -4,7 +4,7 @@ import bpy
 
 class ThreegenPreferences(AddonPreferences):
     bl_idname = __package__
-    url: StringProperty(default="https://gateway-us-west.404.xyz:4443")
+    url: StringProperty(default="https://gateway-us-west.404.xyz")
     token: StringProperty(default="6eca4068-3be6-4d30-b828-f63cda3bc35b")
 
     def draw(self, context: Context):

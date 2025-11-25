@@ -110,15 +110,10 @@ class GatewayApi:
 
 _gateway_instance = None
 
-def get_addon_prefs() -> bpy.types.AddonPreferences:
-    addon_name = "fourofour_3d_gen"  # top-level add-on folder name
-    addon_entry = bpy.context.preferences.addons.get(addon_name)
-    if addon_entry is None:
-        raise RuntimeError(f"Add-on '{addon_name}' is not loaded")
-    return addon_entry.preferences
 
 def get_gateway():
     global _gateway_instance
     if _gateway_instance is None:
-        _gateway_instance = GatewayApi("https://gateway-us-west.404.xyz:4443", "bf6714a5-10f4-42a7-9487-9620317e58cb")
+        prefs = bpy.context.preferences.addons["bl_ext.user_default.fourofour_3d_gen"].preferences
+        _gateway_instance = GatewayApi(prefs.url, prefs.token)
     return _gateway_instance
