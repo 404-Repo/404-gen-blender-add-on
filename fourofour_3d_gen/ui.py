@@ -1,10 +1,13 @@
 import bpy
 from bpy.types import Context, Panel, UILayout
 
-from .client import get_client
-from .gateway.gateway_task import GatewayTaskStatus
-from .ops import GenerateOperator, MeshConversionOperator, RemoveTaskOperator, OpenImageOperator
-from.preferences import ConsentOperator
+from .import ops
+
+job_status_icon = {
+    'COMPLETED': 'CHECKMARK',
+    'FAILED': 'ERROR',
+    'RUNNING': 'SORTTIME'
+}
 
 class THREEGEN_PT_MainPanel(Panel):
     bl_space_type = "VIEW_3D"
@@ -13,32 +16,32 @@ class THREEGEN_PT_MainPanel(Panel):
     bl_idname = "THREEGEN_PT_MainPanel"
     bl_label = "Generation"
 
+    def draw_job(self, context:Context, layout:UILayout, job):
+        col = layout.column()
+        row = col.row()
+        row.label(text="", icon=job_status_icon.get(job.status, 'QUESTION'))
+        row.label(text=job.name)
+        subrow = row.row(align=True)
+        op = subrow.operator(ops.RestartJobOperator.bl_idname, text="", icon="FILE_REFRESH")
+        op.job_id = job.id
+        subrow.enabled = job.status == 'FAILED'
+        op = row.operator(ops.RemoveJobOperator.bl_idname, text="", icon="TRASH")
+        op.job_id = job.id
+        if job.reason:
+            row = col.row()
+            row.label(text=job.reason)
 
-    def draw_task_list(self, context:Context, layout:UILayout):
-        client = get_client()
-
-        if not client.has_tasks():
+    def draw_job_list(self, context:Context, layout:UILayout):
+        job_manager = context.window_manager.threegen.job_manager
+        if not job_manager.has_jobs():
             return
         
         col = layout.column()
         row = col.row()
-        row.label(text="Tasks")
-        row = col.row()
-        col = row.column()
-        for task in client._tasks:
+        row.label(text="Jobs")
+        for job in job_manager.jobs:
             row = col.row()
-            task_status_icon = "SORTTIME"
-            if task.status == GatewayTaskStatus.FAILURE:
-                task_status_icon = "ERROR"
-            if task.status == GatewayTaskStatus.SUCCESS:
-                task_status_icon = "CHECKMARK"           
-            row.label(text=task.prompt, icon=task_status_icon)
-            task_obj_type_icon = 'OUTLINER_DATA_POINTCLOUD'
-            if task.obj_type == 'MESH':
-                task_obj_type_icon = 'MESH_DATA'
-            row.label(text="", icon=task_obj_type_icon)
-            op = row.operator(RemoveTaskOperator.bl_idname, text="", icon="TRASH")
-            op.task_id = task.id
+            self.draw_job(context, row, job)
 
     def draw(self, context: Context):
         layout = self.layout
@@ -55,13 +58,19 @@ class THREEGEN_PT_MainPanel(Panel):
                 col.template_preview(threegen.image_preview, show_buttons=False)
         row = layout.row(align=True)
         row.prop(threegen, "image", text="Image")
-        row.operator(OpenImageOperator.bl_idname, text="", icon='IMAGE_DATA')
+        row.operator(ops.OpenImageOperator.bl_idname, text="", icon='IMAGE_DATA')
         row = layout.row()
         row.prop(threegen, "obj_type", expand=True)
         row = layout.row()
-        row.operator(GenerateOperator.bl_idname)
+        row.prop(threegen, "replace_active_obj", text="Replace active object")
         row = layout.row()
-        self.draw_task_list(context, row)
+        row.prop(threegen, "include_placeholder_dims", text="Include placeholder size")
+        if not threegen.replace_active_obj:
+            row.enabled = False  
+        row = layout.row()
+        row.operator(ops.GenerateOperator.bl_idname)
+        row = layout.row()
+        self.draw_job_list(context, row)
 
 
 class THREEGEN_PT_DisplaySettingsPanel(Panel):
@@ -100,12 +109,16 @@ class THREEGEN_PT_ConversionPanel(Panel):
 
     @classmethod
     def poll(cls, context):
-        threegen = context.window_manager.threegen
+        wm = context.window_manager
+        threegen = getattr(wm, "threegen", None)
+        if threegen is None:
+            return False  # property not yet available
+
         obj = context.object
 
         if threegen.obj_type == 'MESH':
             return True
-        
+
         if obj is not None and "Gaussian Splatting" in obj.modifiers:
             return True
 
@@ -129,35 +142,7 @@ class THREEGEN_PT_ConversionPanel(Panel):
         row.prop(threegen, "texture_size", text="Texture Size")
 
         row = layout.row()
-        op = row.operator(MeshConversionOperator.bl_idname)
-
-
-
-class THREEGEN_PT_ConsentPanel(bpy.types.Panel):
-    bl_space_type = "VIEW_3D"
-    bl_region_type = "UI"
-    bl_category = "404"
-    bl_idname = "THREEGEN_PT_ConsentPanel"
-    bl_label = "Data Collection Notice"
-
-    @classmethod
-    def poll(cls, context: bpy.types.Context) -> bool:
-        notified = bpy.context.preferences.addons[__package__].preferences.data_collection_notice
-        return not notified
-
-    def draw(self, context: bpy.types.Context):
-        layout = self.layout
-        box = layout.box()
-        text_col = box.column(align=True)
-        text_col.scale_y = 0.8
-        width = context.region.width
-        ui_scale = context.preferences.system.ui_scale
-        for text in utils.wrap_text(const.TRACKING_MSG, (4 / (5 * ui_scale)) * width):
-            text_col.label(text=text)
-        row = layout.row()
-        row.scale_y = 1.5
-        row.operator(ConsentOperator.bl_idname)
-
+        op = row.operator(ops.MeshConversionOperator.bl_idname)
 
 class THREEGEN_PT_SocialPanel(Panel):
     bl_space_type = "VIEW_3D"
@@ -177,10 +162,25 @@ class THREEGEN_PT_SocialPanel(Panel):
         op.url = "https://discord.gg/404gen"
 
 
+class THREEGEN_PT_IOPanel(Panel):
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "404"
+    bl_idname = "THREEGEN_PT_IOPanel"
+    bl_label = "Import/Export"
+
+    def draw(self, context: Context):
+        layout = self.layout
+        row = layout.row()
+        row.operator(ops.ImportOperator.bl_idname, text="Import 3DGS PLY")
+
+
+
 classes = (
     THREEGEN_PT_MainPanel,
     THREEGEN_PT_DisplaySettingsPanel,
     THREEGEN_PT_ConversionPanel,
+    THREEGEN_PT_IOPanel,
     THREEGEN_PT_SocialPanel,
 )
 

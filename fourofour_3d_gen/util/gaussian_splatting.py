@@ -1,5 +1,5 @@
 import bpy
-from mathutils import Quaternion
+from mathutils import Quaternion, Euler, Vector
 import math
 import time
 import os
@@ -56,12 +56,9 @@ def import_gs(filepath: str, name: str):
 
     obj = bpy.data.objects.new(name, mesh)
     bpy.context.collection.objects.link(obj)
-    bpy.context.view_layer.objects.active = obj
-    obj.select_set(True)
-
-    obj.rotation_mode = "XYZ"
-    obj.rotation_euler = (-math.pi / 2, 0, 0)
-    obj.rotation_euler[0] = 1.5708
+    # bpy.context.view_layer.objects.active = obj
+    # obj.select_set(True)
+    move_pivot_to_bottom(obj)
 
     print("Mesh attributes added in", time.time() - start_time, "seconds")
 
@@ -102,3 +99,12 @@ def process_attributes(data, euler_order="XYZ"):
         "rot": rot,
         "count": data["count"]
     }
+
+def move_pivot_to_bottom(obj):
+    world_matrix = obj.matrix_world
+    verts_world = [world_matrix @ v.co for v in obj.data.vertices]
+    min_y = min(v.y for v in verts_world)
+    offset = Vector((0, min_y, 0))
+    for v in obj.data.vertices:
+        v.co -= obj.matrix_world.inverted() @ offset
+    obj.location += offset
