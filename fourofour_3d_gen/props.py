@@ -7,7 +7,7 @@ import time
 from .gateway.gateway_api import get_gateway
 from .gateway.gateway_task import GatewayTaskStatus
 from .util.gaussian_splatting import import_gs
-from .util.mesh_conversion import generate_mesh, generate_uvs, bake_texture
+from .util.glb import import_glb
 from .util.positioning import align_and_fit
 from .spz_loader import get_spz
 
@@ -61,11 +61,7 @@ class Job(bpy.types.PropertyGroup):
         name="Image",
         description="A custom image property",
     )
-    angle_limit: bpy.props.FloatProperty(default=1.0, precision=3)
-    island_margin: bpy.props.FloatProperty(default=0.0, precision=3)
-    texture_size: bpy.props.IntProperty(default=4096)
-    voxel_size: bpy.props.FloatProperty(default=0.01, precision=3)
-    adaptivity: bpy.props.FloatProperty(default=0.0, precision=3)
+    seed: bpy.props.IntProperty()
     obj_type: bpy.props.EnumProperty(
         name="Object type",
         description="Defines which type of object to generate",
@@ -89,11 +85,7 @@ class JobManager(bpy.types.PropertyGroup):
         job.status = 'RUNNING'
         job.prompt = threegen.prompt
         job.image = threegen.image
-        job.angle_limit = threegen.angle_limit
-        job.island_margin = threegen.island_margin
-        job.texture_size = threegen.texture_size
-        job.voxel_size = threegen.voxel_size
-        job.adaptivity = threegen.adaptivity
+        job.seed = -1 if threegen.randomize_seed else threegen.seed
         job.obj_type = threegen.obj_type
 
         try:
@@ -106,10 +98,10 @@ class JobManager(bpy.types.PropertyGroup):
             if job.image:
                 img_path = job.image.filepath_from_user()
                 job.name,_ = os.path.splitext(os.path.basename(img_path))
-                task = get_gateway().add_image_task(job.image)
+                task = get_gateway().add_image_task(job.image, job.obj_type, job.seed)
             else:
                 job.name = re.sub(r"\s+", "_", threegen.prompt)
-                task = get_gateway().add_text_task(job.prompt)
+                task = get_gateway().add_text_task(job.prompt, job.obj_type, job.seed)
 
             job.id = task.id
 
@@ -127,9 +119,9 @@ class JobManager(bpy.types.PropertyGroup):
         for job in self.jobs:
             if job.id == id:
                 if job.image:
-                    task = get_gateway().add_image_task(job.image)
+                    task = get_gateway().add_image_task(job.image, job.obj_type)
                 else:
-                    task = get_gateway().add_text_task(job.prompt) 
+                    task = get_gateway().add_text_task(job.prompt, job.obj_type) 
                 job.id = task.id
                 job.crtime = time.time()
                 job.status = 'RUNNING'
@@ -145,6 +137,7 @@ class JobManager(bpy.types.PropertyGroup):
                 self.jobs.remove(i)
 
 
+
     def update_job(self, job):
         try:
             if job.status == 'FAILED':
@@ -158,16 +151,14 @@ class JobManager(bpy.types.PropertyGroup):
             response = get_gateway().get_status(job.id)
 
             if response.status == GatewayTaskStatus.SUCCESS:
-                spz_data = get_gateway().get_result(job.id)
-                ply_data = BytesIO(get_spz().decompress(spz_data, include_normals=False))
-                obj = import_gs(ply_data, job.name)
+                if job.obj_type == '3DGS':
+                    spz_data = get_gateway().get_result(job.id)
+                    ply_data = BytesIO(get_spz().decompress(spz_data, include_normals=False))
+                    obj = import_gs(ply_data, job.name)
 
-                if job.obj_type == 'MESH':
-                    mesh_obj = generate_mesh(obj, job.voxel_size, job.adaptivity)
-                    generate_uvs(mesh_obj, job.angle_limit, job.island_margin)
-                    bake_texture(obj, mesh_obj, job.texture_size)
-                    bpy.data.objects.remove(obj, do_unlink=True)
-                    obj = mesh_obj
+                else:
+                    glb_data = get_gateway().get_result(job.id)
+                    obj = import_glb(glb_data, job.name)
 
                 if job.replace_obj:
                     align_and_fit(job.replace_obj, obj)
@@ -201,17 +192,13 @@ class WindowManagerProps(bpy.types.PropertyGroup):
         type=bpy.types.Texture,
         description="Linked texture for preview"
     )
-    keep_original: bpy.props.BoolProperty(default=False)
-    angle_limit: bpy.props.FloatProperty(default=1.0, precision=3)
-    island_margin: bpy.props.FloatProperty(default=0.0, precision=3)
-    texture_size: bpy.props.IntProperty(default=4096)
-    voxel_size: bpy.props.FloatProperty(default=0.01, precision=3)
-    adaptivity: bpy.props.FloatProperty(default=0.0, precision=3)
+    seed: bpy.props.IntProperty(default=0)
+    randomize_seed: bpy.props.BoolProperty(default=False)
     obj_type: bpy.props.EnumProperty(
         name="Object type",
         description="Defines which type of object to generate",
         items=OBJECT_ENUM_ITEMS,
-        default='3DGS'
+        default='MESH'
     )
     replace_active_obj: bpy.props.BoolProperty(default=False)
     include_placeholder_dims: bpy.props.BoolProperty(default=False)
