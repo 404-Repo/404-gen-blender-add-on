@@ -49,7 +49,7 @@ class THREEGEN_PT_MainPanel(Panel):
 
         row = layout.row()
         row.prop(threegen, "prompt", text="Text")
-        if threegen.image:
+        if threegen.image or threegen.obj_type == 'MESH':
             row.enabled = False
             if threegen.image_preview:
                 row = layout.row()
@@ -60,7 +60,10 @@ class THREEGEN_PT_MainPanel(Panel):
         row.prop(threegen, "image", text="Image")
         row.operator(ops.OpenImageOperator.bl_idname, text="", icon='IMAGE_DATA')
         row = layout.row()
-        row.prop(threegen, "obj_type", expand=True)
+        row.prop(threegen, "obj_type")
+        # row = layout.row()
+        # row.prop(threegen, "seed", text="Seed")
+        # row.prop(threegen, "randomize_seed", text="Random Seed")
         row = layout.row()
         row.prop(threegen, "replace_active_obj", text="Replace active object")
         row = layout.row()
@@ -100,49 +103,6 @@ class THREEGEN_PT_DisplaySettingsPanel(Panel):
         row.prop(obj.modifiers["Gaussian Splatting"], '["Socket_3"]', text="Display Percentage")
 
 
-class THREEGEN_PT_ConversionPanel(Panel):
-    bl_space_type = "VIEW_3D"
-    bl_region_type = "UI"
-    bl_category = "404"
-    bl_idname = "THREEGEN_PT_ConversionPanel"
-    bl_label = "Mesh Conversion"
-
-    @classmethod
-    def poll(cls, context):
-        wm = context.window_manager
-        threegen = getattr(wm, "threegen", None)
-        if threegen is None:
-            return False  # property not yet available
-
-        obj = context.object
-
-        if threegen.obj_type == 'MESH':
-            return True
-
-        if obj is not None and "Gaussian Splatting" in obj.modifiers:
-            return True
-
-        return False
-
-    def draw(self, context: Context):
-        threegen = context.window_manager.threegen
-        layout = self.layout
-
-        row = layout.row()
-        row.prop(threegen, "keep_original", text="Keep Original")       
-        row = layout.row()
-        row.prop(threegen, "voxel_size", text="Min Detail Size")
-        row = layout.row()
-        row.prop(threegen, "adaptivity", text="Simplify")
-
-        row = layout.row()
-        row.prop(threegen, "angle_limit", text="Angle Limit")
-
-        row = layout.row()
-        row.prop(threegen, "texture_size", text="Texture Size")
-
-        row = layout.row()
-        op = row.operator(ops.MeshConversionOperator.bl_idname)
 
 class THREEGEN_PT_SocialPanel(Panel):
     bl_space_type = "VIEW_3D"
@@ -179,7 +139,6 @@ class THREEGEN_PT_IOPanel(Panel):
 classes = (
     THREEGEN_PT_MainPanel,
     THREEGEN_PT_DisplaySettingsPanel,
-    THREEGEN_PT_ConversionPanel,
     THREEGEN_PT_IOPanel,
     THREEGEN_PT_SocialPanel,
 )

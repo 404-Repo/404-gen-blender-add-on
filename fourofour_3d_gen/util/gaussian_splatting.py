@@ -107,4 +107,3 @@ def move_pivot_to_bottom(obj):
     offset = Vector((0, min_y, 0))
     for v in obj.data.vertices:
         v.co -= obj.matrix_world.inverted() @ offset
-    obj.location += offset

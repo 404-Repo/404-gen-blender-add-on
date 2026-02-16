@@ -40,12 +40,13 @@ class GatewayApi:
 
     
 
-    def add_text_task(self, text_prompt: str) -> GatewayTask:
+    def add_text_task(self, text_prompt: str, obj_type:str, seed:int) -> GatewayTask:
         """Adds a text task to the gateway."""
         try:
             url = self._construct_url(host=self._gateway_url, route=GatewayRoutes.ADD_TASK)
+            model = "404-3dgs" if obj_type == "3DGS" else "404-mesh"
             print(text_prompt)
-            payload = {"prompt": text_prompt}
+            payload = {"prompt": text_prompt, "model": model}
             headers = {"x-api-key": self._gateway_api_key, "x-client-origin": "blender" }
             response = self._http_client.post(url=url, json=payload, headers=headers)
             response.raise_for_status()
@@ -53,7 +54,7 @@ class GatewayApi:
         except Exception as e:
             raise GatewayAddTaskError(f"Gateway: error to add task: {e}") from e
         
-    def add_image_task(self, image) -> GatewayTask:
+    def add_image_task(self, image, obj_type:str, seed:int) -> GatewayTask:
         """Adds a image task to the gateway."""
 
         url = self._construct_url(host=self._gateway_url, route=GatewayRoutes.ADD_TASK)
@@ -64,8 +65,9 @@ class GatewayApi:
             image.save_render(temp_path)
             with open(temp_path, "rb") as f:
                 files = {"image": (os.path.basename(temp_path), f, "image/png")}
+                model = "404-3dgs" if obj_type == "3DGS" else "404-mesh"
                 headers = {"x-api-key": self._gateway_api_key, "x-client-origin": "blender" }
-                response = self._http_client.post(url=url, files=files, headers=headers)
+                response = self._http_client.post(url=url, files=files, data={"model": model}, headers=headers)
                 response.raise_for_status()
                 return GatewayTask.model_validate_json(response.text)
             
