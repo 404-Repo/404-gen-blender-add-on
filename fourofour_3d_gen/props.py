@@ -1,43 +1,55 @@
-import bpy
-from io import BytesIO
 import os
 import re
 import time
+import uuid
+from io import BytesIO
+
+import bpy
 
 from .gateway.gateway_api import get_gateway
 from .gateway.gateway_task import GatewayTaskStatus
+from .spz_loader import get_spz
 from .util.gaussian_splatting import import_gs
 from .util.glb import import_glb
 from .util.positioning import align_and_fit
-from .spz_loader import get_spz
+
 
 def on_image_change(self, context):
     if self.image_preview is None:
-        self.image_preview = bpy.data.textures.new("Image Preview", type='IMAGE')
-        self.image_preview.extension = 'CLIP'
+        self.image_preview = bpy.data.textures.new("Image Preview", type="IMAGE")
+        self.image_preview.extension = "CLIP"
 
     self.image_preview.image = self.image
     print("Updated Image Preview")
 
+
 _job_manager_timer_registred: bool = False
+
 
 def job_manager_timer_callback():
     global _job_manager_timer_registred
     job_manager = bpy.context.window_manager.threegen.job_manager
-    if job_manager.has_jobs():
-        try:
-            job_manager.update()
-        except Exception as e:
-            print(e)
+    if not job_manager.has_active_jobs():
+        _job_manager_timer_registred = False
+        return None
+
+    try:
+        job_manager.update()
+    except Exception as e:
+        print(e)
+
+    if job_manager.has_active_jobs():
         return 2.0
 
     _job_manager_timer_registred = False
     return None
 
+
 OBJECT_ENUM_ITEMS = [
-    ('3DGS', "3DGS", "3DGS"),
-    ('MESH', "Mesh", "Mesh"),   
+    ("3DGS", "3DGS", "3DGS"),
+    ("MESH", "Mesh", "Mesh"),
 ]
+
 
 class Job(bpy.types.PropertyGroup):
     id: bpy.props.StringProperty()
@@ -46,12 +58,12 @@ class Job(bpy.types.PropertyGroup):
         name="Job Status",
         description="Defines which type of object to generate",
         items=[
-            ('WAITING', "Waiting", "Waiting", 'PLAY', 0),
-            ('RUNNING', "Running", "Running", 'SORTTIME', 1),
-            ('FAILED', "Failed", "Failed", 'ERROR', 2),
-            ('COMPLETED', "Completed", "Completed", 'CHECKMARK', 3)
+            ("WAITING", "Waiting", "Waiting", "PLAY", 0),
+            ("RUNNING", "Running", "Running", "SORTTIME", 1),
+            ("FAILED", "Failed", "Failed", "ERROR", 2),
+            ("COMPLETED", "Completed", "Completed", "CHECKMARK", 3),
         ],
-        default='WAITING'
+        default="WAITING",
     )
     reason: bpy.props.StringProperty()
     name: bpy.props.StringProperty()
@@ -65,7 +77,7 @@ class Job(bpy.types.PropertyGroup):
     obj_type: bpy.props.EnumProperty(
         name="Object type",
         description="Defines which type of object to generate",
-        items=OBJECT_ENUM_ITEMS
+        items=OBJECT_ENUM_ITEMS,
     )
     replace_obj: bpy.props.PointerProperty(
         type=bpy.types.Object,
@@ -74,6 +86,7 @@ class Job(bpy.types.PropertyGroup):
     )
     open: bpy.props.BoolProperty(default=False)
 
+
 class JobManager(bpy.types.PropertyGroup):
     jobs: bpy.props.CollectionProperty(type=Job)
 
@@ -81,8 +94,10 @@ class JobManager(bpy.types.PropertyGroup):
         global _job_manager_timer_registred
         threegen = bpy.context.window_manager.threegen
         job = self.jobs.add()
+        # Temporary local ID for UI actions before submit, replaced with gateway task ID on success.
+        job.id = str(uuid.uuid4())
         job.crtime = time.time()
-        job.status = 'RUNNING'
+        job.status = "RUNNING"
         job.prompt = threegen.prompt
         job.image = threegen.image
         job.seed = -1 if threegen.randomize_seed else threegen.seed
@@ -93,11 +108,11 @@ class JobManager(bpy.types.PropertyGroup):
                 job.replace_obj = bpy.context.object
                 if threegen.include_placeholder_dims:
                     dims = job.replace_obj.dimensions
-                    job.prompt = f"{job.prompt}, {int(dims.x*100)}cm wide, {int(dims.y*100)}cm deep and {int(dims.z*100)}cm high"
-                
+                    job.prompt = f"{job.prompt}, {int(dims.x * 100)}cm wide, {int(dims.y * 100)}cm deep and {int(dims.z * 100)}cm high"
+
             if job.image:
                 img_path = job.image.filepath_from_user()
-                job.name,_ = os.path.splitext(os.path.basename(img_path))
+                job.name, _ = os.path.splitext(os.path.basename(img_path))
                 task = get_gateway().add_image_task(job.image, job.obj_type, job.seed)
             else:
                 job.name = re.sub(r"\s+", "_", threegen.prompt)
@@ -111,23 +126,34 @@ class JobManager(bpy.types.PropertyGroup):
 
             print(f"Job added: {job.id}")
         except Exception as e:
-            job.status = 'FAILED'
+            job.status = "FAILED"
             job.reason = str(e)
 
     def restart_job(self, id):
         global _job_manager_timer_registred
+        restarted = False
         for job in self.jobs:
             if job.id == id:
-                if job.image:
-                    task = get_gateway().add_image_task(job.image, job.obj_type)
-                else:
-                    task = get_gateway().add_text_task(job.prompt, job.obj_type) 
-                job.id = task.id
-                job.crtime = time.time()
-                job.status = 'RUNNING'
-                job.reason = ""
+                try:
+                    if job.image:
+                        task = get_gateway().add_image_task(
+                            job.image, job.obj_type, job.seed
+                        )
+                    else:
+                        task = get_gateway().add_text_task(
+                            job.prompt, job.obj_type, job.seed
+                        )
+                    job.id = task.id
+                    job.crtime = time.time()
+                    job.status = "RUNNING"
+                    job.reason = ""
+                    restarted = True
+                except Exception as e:
+                    job.status = "FAILED"
+                    job.reason = str(e)
+                break
 
-        if not _job_manager_timer_registred:
+        if restarted and not _job_manager_timer_registred:
             bpy.app.timers.register(job_manager_timer_callback)
             _job_manager_timer_registred = True
 
@@ -136,24 +162,24 @@ class JobManager(bpy.types.PropertyGroup):
             if job.id == id:
                 self.jobs.remove(i)
 
-
-
     def update_job(self, job):
         try:
-            if job.status == 'FAILED':
+            if job.status == "FAILED":
                 return
 
             if time.time() - job.crtime > get_gateway().get_timeout():
-                job.status = 'FAILED'
+                job.status = "FAILED"
                 job.reason = "connection timed out"
                 return
 
             response = get_gateway().get_status(job.id)
 
             if response.status == GatewayTaskStatus.SUCCESS:
-                if job.obj_type == '3DGS':
+                if job.obj_type == "3DGS":
                     spz_data = get_gateway().get_result(job.id)
-                    ply_data = BytesIO(get_spz().decompress(spz_data, include_normals=False))
+                    ply_data = BytesIO(
+                        get_spz().decompress(spz_data, include_normals=False)
+                    )
                     obj = import_gs(ply_data, job.name)
 
                 else:
@@ -165,19 +191,25 @@ class JobManager(bpy.types.PropertyGroup):
                     bpy.data.objects.remove(job.replace_obj, do_unlink=True)
                     job.replace_obj = None
 
-
-                job.status = 'COMPLETED'
+                job.status = "COMPLETED"
                 self.remove_job(job.id)
+            elif response.status == GatewayTaskStatus.FAILURE:
+                job.status = "FAILED"
+                job.reason = response.reason or "generation failed"
         except Exception as e:
-            job.status = 'FAILED'
+            job.status = "FAILED"
             job.reason = str(e)
 
     def update(self):
-        for job in self.jobs:
+        for job in list(self.jobs):
             self.update_job(job)
 
     def has_jobs(self):
         return len(self.jobs) > 0
+
+    def has_active_jobs(self):
+        return any(job.status in {'RUNNING', 'WAITING'} for job in self.jobs)
+
 
 class WindowManagerProps(bpy.types.PropertyGroup):
     prompt: bpy.props.StringProperty()
@@ -185,12 +217,10 @@ class WindowManagerProps(bpy.types.PropertyGroup):
         type=bpy.types.Image,
         name="Image",
         description="A custom image property",
-        update=on_image_change
+        update=on_image_change,
     )
     image_preview: bpy.props.PointerProperty(
-        name="Texture",
-        type=bpy.types.Texture,
-        description="Linked texture for preview"
+        name="Texture", type=bpy.types.Texture, description="Linked texture for preview"
     )
     seed: bpy.props.IntProperty(default=0)
     randomize_seed: bpy.props.BoolProperty(default=False)
@@ -198,7 +228,7 @@ class WindowManagerProps(bpy.types.PropertyGroup):
         name="Object type",
         description="Defines which type of object to generate",
         items=OBJECT_ENUM_ITEMS,
-        default='MESH'
+        default="MESH",
     )
     replace_active_obj: bpy.props.BoolProperty(default=False)
     include_placeholder_dims: bpy.props.BoolProperty(default=False)
@@ -208,14 +238,21 @@ class WindowManagerProps(bpy.types.PropertyGroup):
         description="A job manager",
     )
 
-classes = (Job, JobManager, WindowManagerProps,)
+
+classes = (
+    Job,
+    JobManager,
+    WindowManagerProps,
+)
 
 
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
 
-    bpy.types.WindowManager.threegen = bpy.props.PointerProperty(type=WindowManagerProps)
+    bpy.types.WindowManager.threegen = bpy.props.PointerProperty(
+        type=WindowManagerProps
+    )
 
 
 def unregister():
