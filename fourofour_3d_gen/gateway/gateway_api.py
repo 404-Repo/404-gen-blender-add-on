@@ -38,7 +38,12 @@ class GatewayApi:
         self._gateway_url = gateway_url
         self._gateway_api_key = gateway_api_key
 
-    
+    def _format_add_task_error(self, error: Exception) -> str:
+        if isinstance(error, requests.HTTPError):
+            response = error.response
+            if response is not None and response.status_code == 429:
+                return "Gateway: too many requests. Please retry later."
+        return f"Gateway: error to add task: {error}"
 
     def add_text_task(self, text_prompt: str, obj_type:str, seed:int) -> GatewayTask:
         """Adds a text task to the gateway."""
@@ -52,7 +57,7 @@ class GatewayApi:
             response.raise_for_status()
             return GatewayTask.model_validate_json(response.text)
         except Exception as e:
-            raise GatewayAddTaskError(f"Gateway: error to add task: {e}") from e
+            raise GatewayAddTaskError(self._format_add_task_error(e)) from e
         
     def add_image_task(self, image, obj_type:str, seed:int) -> GatewayTask:
         """Adds a image task to the gateway."""
@@ -77,7 +82,7 @@ class GatewayApi:
                 return GatewayTask.model_validate_json(response.text)
             
         except Exception as e:
-            raise GatewayAddTaskError(f"Gateway: error to add task: {e}") from e
+            raise GatewayAddTaskError(self._format_add_task_error(e)) from e
         
         finally:
             try:
