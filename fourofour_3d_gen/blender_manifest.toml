@@ -1,7 +1,7 @@
 schema_version = "1.0.0"
 
 id = "fourofour_3d_gen"
-version = "0.14.0"
+version = "0.14.1"
 name = "404 3D Generator"
 tagline = "404 3D Generator Extension"
 maintainer = "Ruben Hohndorf <ruben@atlas.design>"
@@ -10,9 +10,7 @@ type = "add-on"
 website = "https://github.com/404-Repo/three-gen-blender-plugin"
 tags = ["3D View"]
 blender_version_min = "4.5.0"
-license = [
-  "SPDX:GPL-3.0-or-later",
-]
+license = ["SPDX:GPL-3.0-or-later"]
 
 wheels = [
   "./wheels/annotated_types-0.7.0-py3-none-any.whl",
@@ -36,4 +34,3 @@ wheels = [
 [permissions]
 network = "Access model generation API"
 files = "Load PLY file from disk"
-

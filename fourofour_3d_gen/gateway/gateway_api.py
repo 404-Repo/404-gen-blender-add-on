@@ -38,7 +38,12 @@ class GatewayApi:
         self._gateway_url = gateway_url
         self._gateway_api_key = gateway_api_key
 
-    
+    def _format_add_task_error(self, error: Exception) -> str:
+        if isinstance(error, requests.HTTPError):
+            response = error.response
+            if response is not None and response.status_code == 429:
+                return "Gateway: too many requests. Please retry later."
+        return f"Gateway: error to add task: {error}"
 
     def add_text_task(self, text_prompt: str, obj_type:str, seed:int) -> GatewayTask:
         """Adds a text task to the gateway."""
@@ -46,13 +51,13 @@ class GatewayApi:
             url = self._construct_url(host=self._gateway_url, route=GatewayRoutes.ADD_TASK)
             model = "404-3dgs" if obj_type == "3DGS" else "404-mesh"
             print(text_prompt)
-            payload = {"prompt": text_prompt, "model": model}
+            payload = {"prompt": text_prompt, "model": model, "seed": seed}
             headers = {"x-api-key": self._gateway_api_key, "x-client-origin": "blender" }
             response = self._http_client.post(url=url, json=payload, headers=headers)
             response.raise_for_status()
             return GatewayTask.model_validate_json(response.text)
         except Exception as e:
-            raise GatewayAddTaskError(f"Gateway: error to add task: {e}") from e
+            raise GatewayAddTaskError(self._format_add_task_error(e)) from e
         
     def add_image_task(self, image, obj_type:str, seed:int) -> GatewayTask:
         """Adds a image task to the gateway."""
@@ -67,15 +72,23 @@ class GatewayApi:
                 files = {"image": (os.path.basename(temp_path), f, "image/png")}
                 model = "404-3dgs" if obj_type == "3DGS" else "404-mesh"
                 headers = {"x-api-key": self._gateway_api_key, "x-client-origin": "blender" }
-                response = self._http_client.post(url=url, files=files, data={"model": model}, headers=headers)
+                response = self._http_client.post(
+                    url=url,
+                    files=files,
+                    data={"model": model, "seed": seed},
+                    headers=headers
+                )
                 response.raise_for_status()
                 return GatewayTask.model_validate_json(response.text)
             
         except Exception as e:
-            raise GatewayAddTaskError(f"Gateway: error to add task: {e}") from e
+            raise GatewayAddTaskError(self._format_add_task_error(e)) from e
         
         finally:
+            try:
                 os.remove(temp_path)
+            except OSError:
+                pass
 
 
     def get_status(self, task_id:str) -> GatewayTaskStatusResponse:
@@ -108,14 +121,21 @@ class GatewayApi:
         return self.GATEWAY_TASK_TIMEOUT_SEC
 
     def _construct_url(self, *, host: str, route: GatewayRoutes, **kwargs: Any) -> str:
-        return f"{host}{route.value}?{urlencode(kwargs)}"
+        query = urlencode(kwargs)
+        if query:
+            return f"{host}{route.value}?{query}"
+        return f"{host}{route.value}"
 
 _gateway_instance = None
 
 
 def get_gateway():
     global _gateway_instance
-    if _gateway_instance is None:
-        prefs = bpy.context.preferences.addons["bl_ext.user_default.fourofour_3d_gen"].preferences
+    prefs = bpy.context.preferences.addons["bl_ext.user_default.fourofour_3d_gen"].preferences
+    if (
+        _gateway_instance is None
+        or _gateway_instance._gateway_url != prefs.url
+        or _gateway_instance._gateway_api_key != prefs.token
+    ):
         _gateway_instance = GatewayApi(prefs.url, prefs.token)
     return _gateway_instance
